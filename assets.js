@@ -29,6 +29,8 @@ window.ASSETS = [
     effect: 'Attack (1 AP): Deal 4 damage. On hit: target bot\'s ATK is halved (round down) next turn.', flavor: 'Death by a thousand pokes.', image: null },
   { id: '012', type: 'card', name: 'Scrambler', category: 'Secondary', cost: 2, atk: 2, def: 4,
     effect: 'Attack (1 AP): Deal 2 damage. On hit: swap target bot\'s ATK and DEF until end of next turn.', flavor: 'Turn their strength against them.', image: null },
+  { id: '038', type: 'card', name: 'Displacer', category: 'Secondary', cost: 4, atk: 1, def: 4,
+    effect: 'Attack (1 AP): Deal 1 damage. On hit: swap target enemy bot with a bot on opponent\'s bench — target is benched until your next turn.', flavor: 'Now you see it. Now you don\'t.', image: null },
   // ── Defensive Bots (bodyguards / interceptors) ───────────
   { id: '013', type: 'card', name: 'Bulwark', category: 'Defensive', cost: 3, atk: 0, def: 8,
     effect: 'Guard: Intercept all attacks targeting your base. Reflect 1 damage back to attacker.', flavor: 'Step behind me.', image: null },
