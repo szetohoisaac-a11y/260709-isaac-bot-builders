@@ -46,7 +46,7 @@ window.ASSETS = [
   { id: '020', type: 'card', name: 'Overcharger', category: 'Support', cost: 3, atk: 0, def: 2,
     effect: 'Ability (1 AP): Target bot may attack twice this turn. Cannot use on consecutive turns.', flavor: 'Push the limit. Then push harder.', image: null },
   { id: '021', type: 'card', name: 'Shield Gen', category: 'Support', cost: 2, atk: 0, def: 3,
-    effect: 'Ability (1 AP): Give target bot +3 DEF until your next turn.', flavor: 'A bubble of bad ideas for your enemies.', image: null },
+    effect: 'Ability (1 AP): Attacks against target bot deal -3 damage until your next turn.', flavor: 'A bubble of bad ideas for your enemies.', image: null },
   // ── Ability Cards: Instants (one-shot, your turn) ────────
   { id: '022', type: 'card', name: 'Scrap Bomb', category: 'Instant', cost: 1, atk: 3, def: 0,
     effect: 'Play (1 AP): Deal 3 damage to any target bot.', flavor: 'One bot\'s trash is another\'s ammunition.', image: null },
