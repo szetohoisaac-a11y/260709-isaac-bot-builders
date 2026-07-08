@@ -33,7 +33,7 @@ window.ASSETS = [
   { id: '014', type: 'card', name: 'Fortress', category: 'Defensive', cost: 4, atk: 0, def: 10,
     effect: 'Guard: Intercept all attacks targeting your base. This bot does not reflect damage.', flavor: 'An immovable wall.', image: null },
   { id: '015', type: 'card', name: 'Spike Wall', category: 'Defensive', cost: 3, atk: 0, def: 6,
-    effect: 'Guard: Intercept attacks. Reflect 2 damage on hit. After reflecting: -1 DEF permanently.', flavor: 'Touch it and bleed.', image: null },
+    effect: 'Guard: Intercept attacks. Reflect 2 damage on hit.', flavor: 'Touch it and bleed.', image: null },
   { id: '016', type: 'card', name: 'Shield Drone', category: 'Defensive', cost: 2, atk: 0, def: 7,
     effect: 'Guard: Intercept attacks targeting your base. Once per turn: prevent 2 damage from one attack.', flavor: 'Constant, quiet protection.', image: null },
   // ── Support Bots (healers / buffers) ─────────────────────
