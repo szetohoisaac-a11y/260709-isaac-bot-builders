@@ -23,4 +23,15 @@ window.ASSETS = [
     effect: 'Guard: Intercept attacks. Reflect 2 damage on hit. After reflecting: -1 DEF permanently.', flavor: 'Touch it and bleed.', image: null },
   { id: '016', type: 'card', name: 'Shield Drone', category: 'Defensive', cost: 2, atk: 0, def: 7,
     effect: 'Guard: Intercept attacks targeting your base. Once per turn: prevent 2 damage from one attack.', flavor: 'Constant, quiet protection.', image: null },
+  // ── Support Bots (healers / buffers) ─────────────────────
+  { id: '017', type: 'card', name: 'Repair Bot', category: 'Support', cost: 2, atk: 0, def: 3,
+    effect: 'Ability (1 AP): Restore 3 HP to target bot.', flavor: 'Welding torch at the ready.', image: null },
+  { id: '018', type: 'card', name: 'Booster', category: 'Support', cost: 3, atk: 0, def: 2,
+    effect: 'Ability (1 AP): Target Active or Secondary bot gains +2 ATK this turn.', flavor: 'Overclock and overdeliver.', image: null },
+  { id: '019', type: 'card', name: 'Medic', category: 'Support', cost: 2, atk: 0, def: 4,
+    effect: 'Ability (1 AP): Restore 5 HP to target bot. Once per turn.', flavor: 'Patch up and push on.', image: null },
+  { id: '020', type: 'card', name: 'Overcharger', category: 'Support', cost: 3, atk: 0, def: 2,
+    effect: 'Ability (1 AP): Target bot may attack twice this turn. Cannot use on consecutive turns.', flavor: 'Push the limit. Then push harder.', image: null },
+  { id: '021', type: 'card', name: 'Shield Gen', category: 'Support', cost: 2, atk: 0, def: 3,
+    effect: 'Ability (1 AP): Give target bot +3 DEF until your next turn.', flavor: 'A bubble of bad ideas for your enemies.', image: null },
 ];
