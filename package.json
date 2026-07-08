@@ -1,0 +1,10 @@
+{
+  "name": "bot-brawl",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bot Brawl — a printable game-asset gallery you fill with your own AI agent.",
+  "scripts": {
+    "start": "node serve.js",
+    "test": "node --test test/*.test.js"
+  }
+}

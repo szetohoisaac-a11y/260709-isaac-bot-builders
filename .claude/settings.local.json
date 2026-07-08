@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --test --test-name-pattern=\"seed data|asset ids\" test/data.test.js)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(bash .agents/skills/subagent-driven-development/scripts/review-package d17fdd56fdabea3d9a0dcf9a0cdfc27119f8a1ae HEAD)",
+      "Bash(bash .agents/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-08-bot-builders-implementation.md 4)"
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+/* Linked with media="print" — these rules apply only when printing. */
+@page { margin: 14mm; }
+
+.topbar, .tagline { display: none !important; }
+body { background: #fff; }
+main { max-width: none; margin: 0; padding: 0; }
+
+.rulebook {
+  box-shadow: none; border: 2px solid #A6CEEC;
+  break-after: page; page-break-after: always;
+}
+
+.family { break-inside: avoid; }
+.grid { grid-template-columns: repeat(3, 1fr); gap: 10mm; }
+.asset {
+  box-shadow: none; border: 1.5px solid #A6CEEC;
+  break-inside: avoid; page-break-inside: avoid;
+}
+.asset-art { height: 28mm; }
