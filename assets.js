@@ -14,6 +14,8 @@ window.ASSETS = [
     effect: 'Attack (1 AP): Deal 3 damage. Special (1 AP): Destroy one face-down trap an opponent controls.', flavor: 'Wires cut, plans ruined.', image: null },
   { id: '006', type: 'card', name: 'Assault Bot', category: 'Active', cost: 4, atk: 6, def: 5,
     effect: 'Attack (1 AP): Deal 6 damage to target enemy bot.', flavor: 'No subtlety. No mercy.', image: null },
+  { id: '036', type: 'card', name: 'Breacher', category: 'Active', cost: 4, atk: 3, def: 6,
+    effect: 'Attack (1 AP): Deal 3 damage to target enemy bot or base. Ignores Defensive-position bots — attacks bypass them entirely.', flavor: 'Walls are just suggestions.', image: null },
   // ── Secondary Active Bots (flankers / debuffers) ─────────
   { id: '007', type: 'card', name: 'Scout', category: 'Secondary', cost: 2, atk: 2, def: 4,
     effect: 'Attack (1 AP): Deal 2 damage. On hit: target bot gets -1 ATK next turn.', flavor: 'Small, fast, annoying.', image: null },
@@ -89,7 +91,4 @@ window.ASSETS = [
     effect: 'Print one per player. Place bot cards on their matching slots. Track base HP with a die. Swap bench↔slot for 1 AP.', image: 'assets/images/game-board.svg' },
   { id: '205', type: 'tile', name: 'Bidding Board', category: 'Board',
     effect: 'Print one per table. Deal auction cards face-up in the pool. Each player gets a zone with chips and won-cards area. Bid 1 chip at a time.', image: 'assets/images/bidding-board.svg' },
-  // ── Active Bots (continued) ─────────────────────────────
-  { id: '036', type: 'card', name: 'Breacher', category: 'Active', cost: 4, atk: 3, def: 6,
-    effect: 'Attack (1 AP): Deal 3 damage to target enemy bot or base. Ignores Defensive-position bots — attacks bypass them entirely.', flavor: 'Walls are just suggestions.', image: null },
 ];
