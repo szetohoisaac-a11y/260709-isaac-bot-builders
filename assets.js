@@ -50,7 +50,7 @@ window.ASSETS = [
   // ── Ability Cards: Instants (one-shot, your turn) ────────
   { id: '022', type: 'card', name: 'Scrap Bomb', category: 'Instant', cost: 1, atk: 3, def: 0,
     effect: 'Play (1 AP): Deal 3 damage to any target bot.', flavor: 'One bot\'s trash is another\'s ammunition.', image: null },
-  { id: '023', type: 'card', name: 'Overdrive', category: 'Instant', cost: 1, atk: 0, def: 0,
+  { id: '023', type: 'card', name: 'Overdrive', category: 'Instant', cost: 2, atk: 0, def: 0,
     effect: 'Play (1 AP): One bot gains +3 ATK this turn.', flavor: 'Redline it.', image: null },
   { id: '024', type: 'card', name: 'Salvage', category: 'Instant', cost: 1, atk: 0, def: 0,
     effect: 'Play (1 AP): Draw 2 cards and gain 1 credit.', flavor: 'Find value in the wreckage.', image: null },
