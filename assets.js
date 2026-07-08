@@ -51,4 +51,17 @@ window.ASSETS = [
     effect: 'Play (1 AP): Gain 3 credits. (Costs 0 credits — you only spend the AP.)', flavor: 'Everything has a use.', image: null },
   { id: '029', type: 'card', name: 'EMP Blast', category: 'Instant', cost: 2, atk: 2, def: 0,
     effect: 'Play (1 AP): Deal 2 damage to all bots of one chosen position type (all players).', flavor: 'Lights out, everybody.', image: null },
+  // ── Ability Cards: Traps (face-down, opponent turn) ──────
+  { id: '030', type: 'card', name: 'Ambush', category: 'Trap', cost: 1, atk: 2, def: 0,
+    effect: 'Trap: When an enemy bot attacks your base, deal 2 damage to it and negate 2 of the incoming damage.', flavor: 'They never see it coming.', image: null },
+  { id: '031', type: 'card', name: 'Failsafe', category: 'Trap', cost: 1, atk: 0, def: 0,
+    effect: 'Trap: When one of your bots would be destroyed, it survives with 1 HP instead. Then discard this.', flavor: 'One last backup routine.', image: null },
+  { id: '032', type: 'card', name: 'Counter-Hack', category: 'Trap', cost: 2, atk: 0, def: 0,
+    effect: 'Trap: When an enemy plays an Instant, negate it and gain 2 credits.', flavor: 'Nice try. My turn.', image: null },
+  { id: '033', type: 'card', name: 'Tripwire', category: 'Trap', cost: 0, atk: 1, def: 0,
+    effect: 'Trap: When an enemy plays a bot to any position, deal 1 damage to it.', flavor: 'Watch your step.', image: null },
+  { id: '034', type: 'card', name: 'Signal Jam', category: 'Trap', cost: 1, atk: 0, def: 0,
+    effect: 'Trap: When an enemy activates a bot\'s special ability, negate it.', flavor: 'No signal. No orders.', image: null },
+  { id: '035', type: 'card', name: 'Retreat Order', category: 'Trap', cost: 1, atk: 0, def: 0,
+    effect: 'Trap: When your bot would be destroyed, swap it to bench with 1 HP instead.', flavor: 'Live to fight another round.', image: null },
 ];
