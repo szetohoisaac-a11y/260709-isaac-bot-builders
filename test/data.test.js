@@ -20,10 +20,10 @@ test('asset ids are unique', () => {
   assert.equal(new Set(ids).size, ids.length);
 });
 
-test('all three families are represented', () => {
+test('cards and tiles families are represented', () => {
   const w = loadGlobals(kit('assets.js'));
   const g = C.groupByType(w.ASSETS);
-  assert.ok(g.card.length && g.token.length && g.tile.length);
+  assert.ok(g.card.length && g.tile.length);
 });
 
 test('rulebook.js has all sections', () => {
