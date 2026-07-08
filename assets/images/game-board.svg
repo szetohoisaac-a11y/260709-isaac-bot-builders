@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" width="600" height="420">
+  <defs>
+    <linearGradient id="baseGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#213F99"/>
+      <stop offset="100%" stop-color="#45ACF4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Title -->
+  <rect x="0" y="0" width="600" height="36" rx="6" fill="#213F99"/>
+  <text x="300" y="24" text-anchor="middle" fill="white" font-family="Quicksand,sans-serif" font-size="16" font-weight="700">BOT BUILDERS — GAME BOARD</text>
+
+  <!-- BASE row -->
+  <rect x="10" y="44" width="580" height="48" rx="8" fill="url(#baseGrad)" stroke="#213F99" stroke-width="2"/>
+  <text x="300" y="65" text-anchor="middle" fill="white" font-family="Quicksand,sans-serif" font-size="13" font-weight="700">BASE — 20 HP</text>
+  <text x="300" y="82" text-anchor="middle" fill="rgba(255,255,255,0.8)" font-family="Quicksand,sans-serif" font-size="11">Track damage with a die or scratch paper</text>
+
+  <!-- ACTIVE slot -->
+  <rect x="10" y="100" width="285" height="120" rx="8" fill="#F2F9FE" stroke="#45ACF4" stroke-width="2.5" stroke-dasharray="8,3"/>
+  <rect x="18" y="108" width="269" height="24" rx="4" fill="#45ACF4"/>
+  <text x="152" y="125" text-anchor="middle" fill="white" font-family="Quicksand,sans-serif" font-size="14" font-weight="700">ACTIVE</text>
+  <text x="152" y="155" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="11">Primary attacker — 1 bot</text>
+  <text x="152" y="175" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="10">1–2 attack options · some have special abilities</text>
+  <text x="152" y="200" text-anchor="middle" fill="#45ACF4" font-family="Quicksand,sans-serif" font-size="10" font-weight="700">Place Active Bot card here</text>
+
+  <!-- SECONDARY ACTIVE slot -->
+  <rect x="305" y="100" width="285" height="120" rx="8" fill="#F2F9FE" stroke="#A6CEEC" stroke-width="2.5" stroke-dasharray="8,3"/>
+  <rect x="313" y="108" width="269" height="24" rx="4" fill="#A6CEEC"/>
+  <text x="447" y="125" text-anchor="middle" fill="#213F99" font-family="Quicksand,sans-serif" font-size="14" font-weight="700">SECONDARY ACTIVE</text>
+  <text x="447" y="155" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="11">Flanker / debuffer — 1 bot</text>
+  <text x="447" y="175" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="10">Weaker attacks · can weaken enemy bots</text>
+  <text x="447" y="200" text-anchor="middle" fill="#A6CEEC" font-family="Quicksand,sans-serif" font-size="10" font-weight="700">Place Secondary Bot card here</text>
+
+  <!-- DEFENSIVE slot -->
+  <rect x="10" y="228" width="285" height="120" rx="8" fill="#F2F9FE" stroke="#213F99" stroke-width="2.5" stroke-dasharray="8,3"/>
+  <rect x="18" y="236" width="269" height="24" rx="4" fill="#213F99"/>
+  <text x="152" y="253" text-anchor="middle" fill="white" font-family="Quicksand,sans-serif" font-size="14" font-weight="700">DEFENSIVE</text>
+  <text x="152" y="283" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="11">Bodyguard — 1 bot · high HP</text>
+  <text x="152" y="303" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="10">Intercepts attacks aimed at your base</text>
+  <text x="152" y="328" text-anchor="middle" fill="#45ACF4" font-family="Quicksand,sans-serif" font-size="10" font-weight="700">Place Defensive Bot card here</text>
+
+  <!-- SUPPORT slot -->
+  <rect x="305" y="228" width="285" height="120" rx="8" fill="#F2F9FE" stroke="#45ACF4" stroke-width="2.5" stroke-dasharray="8,3"/>
+  <rect x="313" y="236" width="269" height="24" rx="4" fill="#45ACF4"/>
+  <text x="447" y="253" text-anchor="middle" fill="white" font-family="Quicksand,sans-serif" font-size="14" font-weight="700">SUPPORT</text>
+  <text x="447" y="283" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="11">Healer / buffer — 1 bot</text>
+  <text x="447" y="303" text-anchor="middle" fill="#888" font-family="Quicksand,sans-serif" font-size="10">Restore HP or boost Active / Secondary</text>
+  <text x="447" y="328" text-anchor="middle" fill="#45ACF4" font-family="Quicksand,sans-serif" font-size="10" font-weight="700">Place Support Bot card here</text>
+
+  <!-- BENCH row -->
+  <rect x="10" y="356" width="580" height="56" rx="8" fill="#fff" stroke="#A6CEEC" stroke-width="2"/>
+  <text x="28" y="380" fill="#888" font-family="Quicksand,sans-serif" font-size="12" font-weight="700">BENCH</text>
+  <text x="90" y="380" fill="#888" font-family="Quicksand,sans-serif" font-size="10">Up to 6 backup bots of any type · 1 AP to swap into a position</text>
+  <rect x="28" y="390" width="40" height="14" rx="3" fill="none" stroke="#A6CEEC" stroke-width="1"/>
+  <rect x="73" y="390" width="40" height="14" rx="3" fill="none" stroke="#A6CEEC" stroke-width="1"/>
+  <rect x="118" y="390" width="40" height="14" rx="3" fill="none" stroke="#A6CEEC" stroke-width="1"/>
+  <rect x="163" y="390" width="40" height="14" rx="3" fill="none" stroke="#A6CEEC" stroke-width="1"/>
+  <rect x="208" y="390" width="40" height="14" rx="3" fill="none" stroke="#A6CEEC" stroke-width="1"/>
+  <rect x="253" y="390" width="40" height="14" rx="3" fill="none" stroke="#A6CEEC" stroke-width="1"/>
+</svg>

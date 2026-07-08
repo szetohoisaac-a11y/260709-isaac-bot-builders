@@ -86,7 +86,7 @@ window.ASSETS = [
     effect: 'Your first draw each turn costs 0 AP instead of 1.', image: null },
   // ── Printable Boards ──────────────────────────────────────
   { id: '204', type: 'tile', name: 'Game Board', category: 'Board',
-    effect: 'Print this page alone for each player. LAYOUT — Top row: BASE (20 HP, track with a die or scratch paper). Middle row: ACTIVE slot (left, your primary attacker) | SECONDARY ACTIVE slot (center, flanker/debuffer). Bottom-left: DEFENSIVE slot (bodyguard, intercepts for base). Bottom-right: SUPPORT slot (healer/buffer). Below all: BENCH row — 6 slots for backup bots of any type. Place cards in their matching slots; swap bench↔slot for 1 AP.', image: null },
+    effect: 'Print one per player. Place bot cards on their matching slots. Track base HP with a die. Swap bench↔slot for 1 AP.', image: 'assets/images/game-board.svg' },
   { id: '205', type: 'tile', name: 'Bidding Board', category: 'Board',
-    effect: 'Print one copy for the table. LAYOUT — Center: AUCTION POOL — deal 20 + (5×players) cards face-up here in a grid. Each player gets a BIDDING ZONE (a row or corner) with: player name, starting chips (300 ÷ players), and a WON CARDS pile. Take turns bidding 1 chip at a time on one card; pass when done. Won cards → your starting deck. Unsold cards → discard. Unspent chips → discard.', image: null },
+    effect: 'Print one per table. Deal auction cards face-up in the pool. Each player gets a zone with chips and won-cards area. Bid 1 chip at a time.', image: 'assets/images/bidding-board.svg' },
 ];
