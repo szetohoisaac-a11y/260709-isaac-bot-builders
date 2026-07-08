@@ -70,6 +70,8 @@ window.ASSETS = [
     effect: 'Play (1 AP): Gain 3 credits.', flavor: 'Everything has a use.', image: null },
   { id: '029', type: 'card', name: 'EMP Blast', category: 'Instant', cost: 2, atk: 2, def: 0,
     effect: 'Play (1 AP): Deal 2 damage to up to 3 target bots.', flavor: 'Lights out, everybody.', image: null },
+  { id: '039', type: 'card', name: 'System Shock', category: 'Instant', cost: 5, atk: 5, def: 0,
+    effect: 'Play (1 AP): Target a damaged enemy bot. The next time it attacks or uses an ability, it is destroyed immediately.', flavor: 'Every circuit has a breaking point.', image: null },
   // ── Ability Cards: Traps (face-down, opponent turn) ──────
   { id: '030', type: 'card', name: 'Ambush', category: 'Trap', cost: 1, atk: 2, def: 0,
     effect: 'Trap: When an enemy bot attacks your base, deal 2 damage to it and negate 2 of the incoming damage.', flavor: 'They never see it coming.', image: null },
