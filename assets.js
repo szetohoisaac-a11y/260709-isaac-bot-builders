@@ -77,4 +77,11 @@ window.ASSETS = [
     effect: 'Tough reserve. Swap cost is 2 AP instead of 1 — plan ahead.', flavor: 'Slow off the bench, hard to knock down.', image: null },
   { id: '106', type: 'token', name: 'Tactical Reserve', category: 'Bench', hp: 6,
     effect: 'When swapped in from bench: draw 1 card.', flavor: 'It does the thinking while it waits.', image: null },
+  // ── Workshop Tiles (optional base mods / play-area cards) ─
+  { id: '201', type: 'tile', name: 'Workshop', category: 'Base Mod',
+    effect: 'Once per turn: your first market purchase costs 1 fewer credit (minimum 0).', image: null },
+  { id: '202', type: 'tile', name: 'Scrap Yard', category: 'Base Mod',
+    effect: 'When any bot is destroyed: its controller gains +1 extra credit.', image: null },
+  { id: '203', type: 'tile', name: 'Command Center', category: 'Base Mod',
+    effect: 'Your first draw each turn costs 0 AP instead of 1.', image: null },
 ];
