@@ -103,6 +103,7 @@
     const rows = [
       ['How to play', R.howToPlay], ['A turn', R.aTurn],
       ['Win', R.winCondition], ['Pieces', R.pieces], ['Numbers', R.ranges],
+      ['Starting deck', R.startingDeck],
     ];
     for (const [k, v] of rows) {
       if (!v) continue;
