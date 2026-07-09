@@ -16,4 +16,5 @@ main { max-width: none; margin: 0; padding: 0; }
   box-shadow: none; border: 1.5px solid #A6CEEC;
   break-inside: avoid; page-break-inside: avoid;
 }
-.asset-art { height: 28mm; }
+.asset-art { aspect-ratio: 1 / 1; height: auto; }
+.asset-art img { object-fit: contain; }
