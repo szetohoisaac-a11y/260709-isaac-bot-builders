@@ -5,7 +5,15 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(bash .agents/skills/subagent-driven-development/scripts/review-package d17fdd56fdabea3d9a0dcf9a0cdfc27119f8a1ae HEAD)",
-      "Bash(bash .agents/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-08-bot-builders-implementation.md 4)"
+      "Bash(bash .agents/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-08-bot-builders-implementation.md 4)",
+      "Bash(node scripts/test-key.js)",
+      "Bash(node -e \"require\\('dotenv'\\)\")",
+      "WebSearch",
+      "Bash(node scripts/gen-asset-image.js \"2d pixelated\")",
+      "Bash(npm install *)",
+      "Bash(node -e \"console.log\\('PROJECT:', process.env.GOOGLE_CLOUD_PROJECT || 'NOT SET'\\); console.log\\('CREDS:', process.env.GOOGLE_APPLICATION_CREDENTIALS || 'NOT SET'\\); console.log\\('API_KEY:', process.env.GOOGLE_API_KEY ? 'SET' : 'NOT SET'\\)\")",
+      "Bash(gcloud config *)",
+      "Bash(gcloud auth *)"
     ]
   }
 }

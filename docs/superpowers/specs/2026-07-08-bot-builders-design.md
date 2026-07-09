@@ -64,7 +64,7 @@ Each player manages 5 position slots + a bench:
 ### 3.2 Game Start
 
 - Each player starts with **5 combat credits**
-- Each player deploys **1 bot** from hand to any position for free (before the first turn)
+- Each player deploys **up to 3 bots** from hand to any positions for free (before the first turn)
 - Market row is dealt: 3 cards face-up
 - Randomly determine first player
 
