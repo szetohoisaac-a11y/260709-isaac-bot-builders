@@ -516,6 +516,88 @@
     return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
   };
 
+  // Play a trap face-down
+  ENGINE.playTrap = function (state, playerId, cardId) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (!p || p.ap < 1) return { newState: s, error: 'Not enough AP' };
+    const idx = p.hand.findIndex(c => c.id === cardId);
+    if (idx === -1) return { newState: s, error: 'Card not in hand' };
+    const card = p.hand.splice(idx, 1)[0];
+    p.traps.push(card);
+    p.ap -= 1;
+    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} set a trap face-down.` });
+    return { newState: s };
+  };
+
+  // Check and trigger traps. Called during opponent actions.
+  ENGINE.checkTraps = function (state, targetPlayerId, triggerType, context) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === targetPlayerId);
+    if (!p || !p.traps || !p.traps.length) return { newState: s, triggered: false };
+    let triggered = false;
+    for (let i = p.traps.length - 1; i >= 0; i--) {
+      const trap = p.traps[i];
+      let shouldTrigger = false;
+      switch (trap.name) {
+        case 'Ambush':
+          shouldTrigger = (triggerType === 'base_attack');
+          break;
+        case 'Tripwire':
+          shouldTrigger = (triggerType === 'play_bot');
+          break;
+        case 'Signal Jam':
+          shouldTrigger = (triggerType === 'use_ability');
+          break;
+        case 'Counter-Hack':
+          shouldTrigger = (triggerType === 'play_instant');
+          break;
+        case 'Failsafe':
+          shouldTrigger = (triggerType === 'bot_destroyed');
+          break;
+        case 'Retreat Order':
+          shouldTrigger = (triggerType === 'bot_would_be_destroyed');
+          break;
+      }
+      if (shouldTrigger) {
+        triggered = true;
+        switch (trap.name) {
+          case 'Ambush':
+            if (context && context.attackerPosition && context.attackerId) {
+              const atkPlayer = s.players.find(pl => pl.id === context.attackerId);
+              if (atkPlayer && atkPlayer.board[context.attackerPosition]) {
+                atkPlayer.board[context.attackerPosition].def -= 2;
+                s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Ambush triggered! Dealt 2 damage to attacker. Incoming damage reduced by 2.` });
+              }
+            }
+            break;
+          case 'Tripwire':
+            if (context && context.botName) {
+              s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Tripwire triggered! Dealt 1 damage to ${context.botName}.` });
+            }
+            break;
+          case 'Signal Jam':
+            s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Signal Jam negated an ability!` });
+            break;
+          case 'Counter-Hack':
+            s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Counter-Hack negated an instant and gained 2 credits!` });
+            p.credits += 2;
+            break;
+          case 'Failsafe':
+            s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Failsafe saved a bot from destruction!` });
+            break;
+          case 'Retreat Order':
+            s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Retreat Order swapped bot to bench with 1 HP!` });
+            break;
+        }
+        p.traps.splice(i, 1);
+        p.discard.push(trap);
+        break; // One trap per trigger
+      }
+    }
+    return { newState: s, triggered };
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
   if (typeof window !== 'undefined') window.GameEngine = ENGINE;
 })();

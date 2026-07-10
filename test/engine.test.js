@@ -170,3 +170,23 @@ test('parts scavenge gives 3 credits', () => {
   const result = E.playInstant(s, 1, '032', []);
   assert.equal(result.newState.players[0].credits, 4);
 });
+
+test('playTrap sets a face-down trap', () => {
+  const s = E.createGame(['Alice'], 'shared');
+  s.players[0].ap = 3;
+  s.players[0].hand = [{ id: '030', type: 'card', name: 'Ambush', category: 'Trap', cost: 1, atk: 2, def: 0, effect: 'test', image: null }];
+  const result = E.playTrap(s, 1, '030');
+  assert.equal(result.newState.players[0].traps.length, 1);
+  assert.equal(result.newState.players[0].traps[0].name, 'Ambush');
+});
+
+test('ambush triggers on base attack', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.players[1].traps = [{ id: '030', type: 'card', name: 'Ambush', category: 'Trap', cost: 1, atk: 2, def: 0, effect: 'test', image: null }];
+  s.players[0].ap = 3;
+  s.players[0].board.active = { id: '001', type: 'card', name: 'Striker', category: 'Active', cost: 3, atk: 4, def: 5, effect: 'test', image: null };
+  const result = E.checkTraps(s, 2, 'base_attack', { attackerId: 1, attackerPosition: 'active' });
+  assert.ok(result.triggered);
+  assert.equal(result.newState.players[0].board.active.def, 3); // Striker took 2 damage
+  assert.equal(result.newState.players[1].traps.length, 0); // Trap consumed
+});
