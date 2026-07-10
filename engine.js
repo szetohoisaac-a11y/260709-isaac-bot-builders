@@ -159,7 +159,12 @@
     if (!['active','secondary','defensive','support','bench'].includes(position)) {
       return { newState: s, error: 'Invalid position' };
     }
-    const card = p.hand.splice(idx, 1)[0];
+    // Enforce category-to-slot match (bench accepts any bot)
+    const card = p.hand[idx];
+    if (position !== 'bench' && card.category.toLowerCase() !== position) {
+      return { newState: s, error: `${card.category} bots can only go in the ${card.category.toLowerCase()} slot.` };
+    }
+    p.hand.splice(idx, 1);
     if (position === 'bench') {
       const benchIdx = p.board.bench.findIndex(b => b === null);
       if (benchIdx === -1) return { newState: s, error: 'Bench full' };
@@ -186,6 +191,10 @@
     if (p.ap < 1) return { newState: s, error: 'Not enough AP' };
     if (benchIndex < 0 || benchIndex > 5 || !p.board.bench[benchIndex]) return { newState: s, error: 'No bot on bench slot' };
     const benchBot = p.board.bench[benchIndex];
+    // Enforce category-to-slot match when swapping to a board position
+    if (position !== 'bench' && benchBot.category.toLowerCase() !== position) {
+      return { newState: s, error: `${benchBot.category} bots can only go in the ${benchBot.category.toLowerCase()} slot.` };
+    }
     const posBot = p.board[position] || null;
     p.board.bench[benchIndex] = posBot;
     p.board[position] = benchBot;

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bot Brawl — Print Cards (69×98mm, 2 pages)</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════
+       RESET & ROOT
+       ═══════════════════════════════════════════════════════════ */
+    :root {
+      --bg: #0a0e14;
+      --card-bg: #12171f;
+      --accent: #45ACF4;
+      --muted: #7A8A9A;
+      --rule: #1e2a36;
+      --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      --text: #d0d8e4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10mm 0;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       PAGE CONTAINER  —  210mm wide = exact A4
+       ═══════════════════════════════════════════════════════════ */
+    .page {
+      width: 210mm;
+      padding: 0;
+      margin-bottom: 8mm;
+      background: var(--bg);
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       CARD GRID  —  3 cols × 2 rows
+       3×69mm + 2×1.5mm gap = 210mm  (exact A4 width)
+       2×98mm + 1×1.5mm gap = 197.5mm (fits A4 height with room)
+       ═══════════════════════════════════════════════════════════ */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 69mm);
+      grid-auto-rows: 98mm;
+      gap: 1.5mm;
+      justify-content: start;
+      align-content: start;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       CARD SHELL  —  69mm × 98mm
+       ═══════════════════════════════════════════════════════════ */
+    .asset {
+      width: 69mm;
+      height: 98mm;
+      background: var(--card-bg);
+      border: 1.2px solid var(--rule);
+      border-radius: 2.5mm;
+      padding: 2.5mm 3mm;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2mm;
+      overflow: hidden;
+    }
+
+    /* ── Header: name + cost ───────────────────────────── */
+    .asset-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 6mm;
+    }
+    .asset-name {
+      font-weight: 700;
+      font-size: 8.5pt;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      letter-spacing: 0.2pt;
+    }
+    .asset-cost {
+      background: var(--accent);
+      color: #000;
+      font-weight: 800;
+      font-size: 7.5pt;
+      width: 6mm;
+      height: 6mm;
+      min-width: 6mm;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Art area ──────────────────────────────────────── */
+    .asset-art {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: #0d1520;
+      border-radius: 2mm;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .asset-art img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .asset-badge {
+      position: absolute;
+      top: 1mm;
+      right: 1mm;
+      background: #000a;
+      color: var(--accent);
+      font-size: 4.5pt;
+      font-weight: 600;
+      padding: 0.8mm 1.8mm;
+      border-radius: 1.5mm;
+      text-transform: uppercase;
+      letter-spacing: 0.3pt;
+    }
+
+    /* ── Stats row ─────────────────────────────────────── */
+    .asset-stats {
+      display: flex;
+      gap: 1.5mm;
+    }
+    .stat {
+      background: #1a2430;
+      border-radius: 1.5mm;
+      padding: 0.6mm 2mm;
+      font-size: 6pt;
+      font-weight: 700;
+    }
+    .stat .label {
+      color: var(--muted);
+      font-weight: 400;
+      font-size: 5pt;
+      margin-right: 0.8mm;
+    }
+
+    /* ── Effect text ───────────────────────────────────── */
+    .asset-effect {
+      font-size: 5pt;
+      line-height: 1.3;
+      color: #bcc8d6;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Flavor ────────────────────────────────────────── */
+    .asset-flavor {
+      font-size: 4.5pt;
+      font-style: italic;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Footer: ID ────────────────────────────────────── */
+    .asset-foot {
+      font-size: 4pt;
+      color: var(--muted);
+      text-align: right;
+      letter-spacing: 0.3pt;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       PRINT  —  A4 portrait, no margins, white cards
+       ═══════════════════════════════════════════════════════════ */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+      }
+
+      body {
+        padding: 0;
+      }
+
+      .page {
+        margin: 0;
+        padding: 0;
+        width: 210mm;
+        background: #fff;
+        page-break-after: always;
+      }
+      .page:last-child {
+        page-break-after: avoid;
+      }
+
+      .asset {
+        background: #fff;
+        border: 1.2px solid #A6CEEC;
+        color: #1a1a2e;
+      }
+      .asset-name { color: #1a1a2e; }
+      .asset-effect { color: #333; }
+      .asset-art { background: #f0f4f8; }
+      .stat { background: #e8f0f8; color: #1a1a2e; }
+      .stat .label { color: #7A8A9A; }
+      .asset-flavor { color: #7A8A9A; }
+      .asset-foot { color: #999; }
+      .asset-badge { background: #e8f0f8; color: #2d8fd5; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       SCREEN-ONLY HINT
+       ═══════════════════════════════════════════════════════════ */
+    .print-hint {
+      text-align: center;
+      color: var(--muted);
+      font-size: 10pt;
+      margin-bottom: 6mm;
+    }
+    @media print {
+      .print-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <p class="print-hint">🖨️  Press <strong>Ctrl+P</strong> → set <strong>Margins: None</strong> → print on A4<br>
+  <small>3 columns × 2 rows per page • Card size 69×98mm</small></p>
+
+  <!-- Page containers built by script below -->
+  <script>
+    /* ═══════════════════════════════════════════════════════════
+       CARD DATA  —  10 cards, 2 pages of 5
+       ═══════════════════════════════════════════════════════════ */
+    const CARDS = [
+      { id:'001', name:'Striker',     category:'Active',    cost:3, atk:4, def:5,  effect:'Attack (1 AP): Deal 4 damage to target enemy bot.',                                              flavor:'Precision over power.',                     image:'assets/images/cards/001-a-sleek-precision.png' },
+      { id:'002', name:'Brawler',     category:'Active',    cost:4, atk:5, def:6,  effect:'Attack (1 AP): Deal 5 damage to a bot or 3 to enemy base. Special (1 AP): +2 damage this turn.',   flavor:'Built for the front line.',                image:'assets/images/cards/002-a-heavy-frontline.png' },
+      { id:'003', name:'Artillery',   category:'Active',    cost:5, atk:7, def:4,  effect:'Attack (1 AP): Deal 7 damage to a bot OR 4 to enemy base.',                                        flavor:'From a distance, with intent.',             image:'assets/images/cards/003-a-long-range-missile.png' },
+      { id:'004', name:'Commander',   category:'Active',    cost:4, atk:3, def:6,  effect:'Attack (1 AP): Deal 3 damage. Special (1 AP): Your Secondary Active deals +2 damage this turn.',    flavor:'Every squad needs a leader.',               image:'assets/images/cards/004-a-commanding-robot.png' },
+      { id:'010', name:'Flanker',     category:'Secondary', cost:2, atk:3, def:3,  effect:'Attack (1 AP): Deal 3 damage. If target has no adjacent ally bots, deal +2 instead.',                flavor:"Hit them where they're not looking.",       image:'assets/images/cards/010-a-swift-flanking.png' },
+      { id:'008', name:'Scout',       category:'Secondary', cost:2, atk:2, def:4,  effect:'Attack (1 AP): Deal 2 damage. On hit: target bot gets -1 ATK next turn.',                            flavor:'Small, fast, annoying.',                    image:'assets/images/cards/008-a-small-fast.png' },
+      { id:'015', name:'Bulwark',     category:'Defensive', cost:3, atk:0, def:8,  effect:'Guard: Intercept all attacks targeting your base. Reflect 1 damage back to attacker.',                flavor:'Step behind me.',                           image:'assets/images/cards/015-a-massive-defensive.png' },
+      { id:'016', name:'Fortress',    category:'Defensive', cost:4, atk:0, def:10, effect:'Guard: Intercept all attacks targeting your base. This bot does not reflect damage.',                   flavor:'An immovable wall.',                        image:'assets/images/cards/016-an-enormous-fortress.png' },
+      { id:'023', name:'Overcharger', category:'Support',   cost:3, atk:0, def:2,  effect:'Ability (1 AP): Target bot may attack twice this turn. Cannot use on consecutive turns.',             flavor:'Push the limit. Then push harder.',         image:'assets/images/cards/023-an-overcharger-robot.png' },
+      { id:'024', name:'Shield Gen',  category:'Support',   cost:2, atk:0, def:3,  effect:'Ability (1 AP): Attacks against target bot deal -3 damage until your next turn.',                    flavor:'A bubble of bad ideas for your enemies.',   image:'assets/images/cards/024-a-shield-generator.png' }
+    ];
+
+    /* ═══════════════════════════════════════════════════════════
+       SVG PLACEHOLDER ICONS  (fallback when image missing)
+       ═══════════════════════════════════════════════════════════ */
+    const PATHS = {
+      zap:    'M13 2 4 14h7l-1 8 9-12h-7l1-8Z',
+      shield: 'M12 3 5 6v6c0 4 3 7 7 9 4-2 7-5 7-9V6l-7-3Z',
+      wrench: 'M14 7a4 4 0 0 1-5 5l-6 6 2 2 6-6a4 4 0 0 0 5-5l-2 2-2-2 2-2Z',
+      cpu:    'M6 6h12v12H6zM9 9h6v6H9zM2 9h2M2 14h2M20 9h2M20 14h2M9 2v2M14 2v2M9 20v2M14 20v2'
+    };
+
+    function pickIcon(card) {
+      var c = card.category.toLowerCase();
+      if (c.includes('active') || c.includes('secondary')) return PATHS.zap;
+      if (c.includes('defensive')) return PATHS.shield;
+      if (c.includes('support')) return PATHS.wrench;
+      return PATHS.cpu;
+    }
+
+    function svgPlaceholder(card) {
+      var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 24 24');
+      svg.setAttribute('fill', 'none');
+      svg.setAttribute('stroke', '#45ACF4');
+      svg.setAttribute('stroke-width', '1.6');
+      svg.setAttribute('stroke-linecap', 'round');
+      svg.setAttribute('stroke-linejoin', 'round');
+      svg.style.cssText = 'width:18mm;height:18mm;position:absolute;opacity:0.35';
+      var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', pickIcon(card));
+      svg.appendChild(p);
+      return svg;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       BUILD A SINGLE CARD ELEMENT
+       ═══════════════════════════════════════════════════════════ */
+    function artBox(card) {
+      var box = document.createElement('div');
+      box.className = 'asset-art';
+
+      var badge = document.createElement('span');
+      badge.className = 'asset-badge';
+      badge.textContent = card.category;
+      box.appendChild(badge);
+
+      if (card.image) {
+        var img = document.createElement('img');
+        img.alt = card.name;
+        img.src = card.image;
+        img.onerror = function() { img.remove(); box.insertBefore(svgPlaceholder(card), badge); };
+        box.appendChild(img);
+      } else {
+        box.appendChild(svgPlaceholder(card));
+      }
+      return box;
+    }
+
+    function cardEl(card) {
+      var el = document.createElement('div');
+      el.className = 'asset';
+
+      /* header */
+      var head = document.createElement('div');
+      head.className = 'asset-head';
+      var name = document.createElement('span');
+      name.className = 'asset-name';
+      name.textContent = card.name;
+      head.appendChild(name);
+      if (typeof card.cost === 'number') {
+        var cost = document.createElement('span');
+        cost.className = 'asset-cost';
+        cost.textContent = card.cost;
+        head.appendChild(cost);
+      }
+      el.appendChild(head);
+
+      /* art */
+      el.appendChild(artBox(card));
+
+      /* stats */
+      var stats = [
+        card.atk != null ? { label:'ATK', value:card.atk } : null,
+        card.def != null ? { label:'HP',  value:card.def } : null
+      ].filter(Boolean);
+      if (stats.length) {
+        var row = document.createElement('div');
+        row.className = 'asset-stats';
+        stats.forEach(function(s) {
+          var stat = document.createElement('span');
+          stat.className = 'stat';
+          var lbl = document.createElement('span');
+          lbl.className = 'label';
+          lbl.textContent = s.label;
+          stat.appendChild(lbl);
+          stat.appendChild(document.createTextNode(String(s.value)));
+          row.appendChild(stat);
+        });
+        el.appendChild(row);
+      }
+
+      /* effect */
+      if (card.effect) {
+        var eff = document.createElement('p');
+        eff.className = 'asset-effect';
+        eff.textContent = card.effect;
+        el.appendChild(eff);
+      }
+
+      /* flavor */
+      if (card.flavor) {
+        var flav = document.createElement('p');
+        flav.className = 'asset-flavor';
+        flav.textContent = card.flavor;
+        el.appendChild(flav);
+      }
+
+      /* footer */
+      var foot = document.createElement('div');
+      foot.className = 'asset-foot';
+      foot.textContent = '#' + card.id;
+      el.appendChild(foot);
+
+      return el;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       BUILD PAGES  —  2 pages, 5 cards each
+       ═══════════════════════════════════════════════════════════ */
+    var CARDS_PER_PAGE = 5;
+    var totalPages = Math.ceil(CARDS.length / CARDS_PER_PAGE);
+
+    for (var p = 0; p < totalPages; p++) {
+      var page = document.createElement('div');
+      page.className = 'page';
+
+      var grid = document.createElement('div');
+      grid.className = 'grid';
+
+      var start = p * CARDS_PER_PAGE;
+      var end   = Math.min(start + CARDS_PER_PAGE, CARDS.length);
+      for (var i = start; i < end; i++) {
+        grid.appendChild(cardEl(CARDS[i]));
+      }
+
+      page.appendChild(grid);
+      document.body.appendChild(page);
+    }
+  </script>
+
+</body>
+</html>

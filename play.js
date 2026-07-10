@@ -206,7 +206,7 @@
       // Show "Play Here" hint if a hand card is selected and it's a bot
       if (uiState.selectedCard) {
         var card = cardById(uiState.selectedCard);
-        if (card && isBotCard(card)) {
+        if (card && isBotCard(card) && card.category.toLowerCase() === pos) {
           var btn = slot.querySelector('.play-here-btn');
           if (!btn) {
             btn = document.createElement('button');
