@@ -29,3 +29,30 @@ input { font-family: var(--font); font-size: 14px; padding: 8px; border: 2px sol
 .enemy-targetable { border-color: var(--accent) !important; animation: pulse-target 1.2s ease-in-out infinite; }
 @keyframes pulse-target { 0%,100% { box-shadow: 0 0 0 0 rgba(69,172,244,0.4); } 50% { box-shadow: 0 0 0 6px rgba(69,172,244,0.15); } }
 .damaged { color: #e74c3c; }
+/* Auction */
+#auction-screen { max-width: 700px; margin: 0 auto; padding: 20px; text-align: center; }
+#auction-header h2 { margin: 0; font-size: 24px; color: var(--heading); }
+#auction-round-info { font-size: 14px; color: var(--muted); }
+#auction-card-display { margin: 20px auto; padding: 20px; border: 2px solid var(--accent); border-radius: 18px; background: var(--tint); max-width: 350px; }
+#auction-card-name { font-size: 22px; font-weight: 700; color: var(--heading); }
+#auction-card-effect { font-size: 14px; color: var(--text); margin-top: 8px; }
+#auction-card-stats { font-size: 13px; color: var(--muted); margin-top: 4px; }
+#auction-players { margin: 16px 0; }
+#auction-player-list { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.auction-player { border: 2px solid var(--rule); border-radius: 12px; padding: 8px 14px; background: #fff; min-width: 90px; }
+.auction-player .name { font-weight: 700; }
+.auction-player .chips { font-size: 12px; color: var(--accent); }
+.auction-player .status { font-size: 11px; color: var(--muted); }
+#auction-bid-area { margin: 20px 0; }
+#bid-amount { width: 100px; font-size: 18px; text-align: center; }
+#bid-status { font-size: 12px; color: var(--muted); margin-top: 4px; }
+#auction-log { max-height: 120px; overflow-y: auto; font-size: 12px; color: var(--muted); text-align: left; border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 12px; }
+
+/* ── Card images in game UI ── */
+.card-img { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--tint); flex-shrink: 0; }
+.slot-img { width: 56px; height: 56px; object-fit: contain; border-radius: 8px; background: var(--tint); margin-right: 6px; float: left; }
+.auction-img { width: 120px; height: 120px; object-fit: contain; border-radius: 12px; background: var(--tint); margin: 0 auto 12px; display: block; }
+.hand-card, .market-card { display: flex; align-items: flex-start; gap: 8px; }
+.hand-card .card-info, .market-card .card-info { flex: 1; min-width: 0; }
+.slot-card { display: flow-root; }
+.slot-card .empty-slot { color: var(--muted); font-style: italic; }

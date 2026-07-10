@@ -184,7 +184,11 @@
       if (bot) {
         var atk = bot.atk != null ? bot.atk : 0;
         var def = bot.def != null ? bot.def : 0;
+        var imgHtml = bot.image
+          ? '<img class="slot-img" src="' + escHtml(bot.image) + '" alt="' + escHtml(bot.name) + '" onerror="this.style.display=\'none\'">'
+          : '';
         cardDiv.innerHTML =
+          imgHtml +
           '<div class="bot-name">' + escHtml(bot.name) + '</div>' +
           '<span class="atk">ATK ' + atk + '</span> ' +
           '<span class="hp">HP ' + def + '</span>';
@@ -280,12 +284,16 @@
       var cost = card.cost != null ? card.cost : 0;
       var atk = card.atk != null ? card.atk : 0;
       var def = card.def != null ? card.def : 0;
+      var imgHtml = card.image
+        ? '<img class="card-img" src="' + escHtml(card.image) + '" alt="' + escHtml(card.name) + '" onerror="this.style.display=\'none\'">'
+        : '';
       cardEl.innerHTML =
-        '<strong>' + escHtml(card.name) + '</strong>' +
+        imgHtml +
+        '<div class="card-info"><strong>' + escHtml(card.name) + '</strong>' +
         ' <span class="cost">(' + cost + 'c)</span>' +
         (atk > 0 ? ' <span class="atk">ATK ' + atk + '</span>' : '') +
         (def > 0 ? ' <span class="hp">HP ' + def + '</span>' : '') +
-        '<div style="font-size:10px;color:var(--muted)">' + escHtml(card.effect || '') + '</div>';
+        '<div style="font-size:10px;color:var(--muted)">' + escHtml(card.effect || '') + '</div></div>';
       cardEl.title = card.effect || '';
       cardEl.addEventListener('click', function () {
         onHandCardClick(card);
@@ -302,10 +310,14 @@
       var cardEl = document.createElement('div');
       cardEl.className = 'market-card ' + botCategoryClass(card.category);
       var cost = card.cost != null ? card.cost : 0;
+      var imgHtml = card.image
+        ? '<img class="card-img" src="' + escHtml(card.image) + '" alt="' + escHtml(card.name) + '" onerror="this.style.display=\'none\'">'
+        : '';
       cardEl.innerHTML =
-        '<strong>' + escHtml(card.name) + '</strong>' +
+        imgHtml +
+        '<div class="card-info"><strong>' + escHtml(card.name) + '</strong>' +
         ' <span class="cost">' + cost + ' credits</span>' +
-        '<div style="font-size:10px;color:var(--muted)">' + escHtml(card.effect || '') + '</div>';
+        '<div style="font-size:10px;color:var(--muted)">' + escHtml(card.effect || '') + '</div></div>';
       cardEl.addEventListener('click', function () {
         buyMarketCard(idx);
       });
@@ -1358,6 +1370,139 @@
     }, 100);
   }
 
+  // ========== AUCTION ==========
+
+  function showAuctionScreen() {
+    var as = document.getElementById('auction-screen');
+    if (as) as.style.display = 'block';
+  }
+
+  function hideAuctionScreen() {
+    var as = document.getElementById('auction-screen');
+    if (as) as.style.display = 'none';
+  }
+
+  function onBidChange() {
+    var inp = document.getElementById('bid-amount');
+    var p = getCurrentPlayer();
+    if (p && inp) {
+      var max = p.biddingChips || 0;
+      if (parseInt(inp.value) > max) inp.value = max;
+      if (parseInt(inp.value) < 0) inp.value = 0;
+    }
+  }
+
+  // Track which player is currently bidding (shared-screen auction)
+  var _auctionBidder = 0;
+
+  function submitPlayerBid() {
+    var inp = document.getElementById('bid-amount');
+    var amount = parseInt(inp.value) || 0;
+    if (!gameState || gameState.phase !== 'auction') return;
+
+    var currentBidder;
+    if (uiState.mode === 'shared') {
+      // Shared: players take turns bidding. Determine who hasn't bid yet.
+      var alive = gameState.players.filter(function (p) { return p.baseHP > 0; });
+      var nextToBid = null;
+      for (var i = 0; i < alive.length; i++) {
+        if (gameState.bids[alive[i].id] === undefined) {
+          nextToBid = alive[i].id;
+          break;
+        }
+      }
+      if (!nextToBid) { nextToBid = alive[0].id; } // fallback
+      currentBidder = nextToBid;
+    } else {
+      currentBidder = uiState.playerId;
+    }
+
+    var result = Engine.submitBid(gameState, currentBidder, amount);
+    gameState = result.newState;
+    inp.value = 0;
+    var status = document.getElementById('bid-status');
+    if (status) {
+      status.textContent = result.tie ? 'Tie! Re-bid between tied players.' : (currentBidder === 1 ? 'Player 1 bid. Pass to Player 2.' : 'Bid submitted. Resolving...');
+    }
+    renderAuction(gameState);
+    if (gameState.phase === 'playing') {
+      hideAuctionScreen();
+      dom.gameScreen.style.display = 'block';
+      renderAll(gameState);
+    }
+  }
+
+  function getCurrentPlayer() {
+    if (!gameState) return null;
+    return gameState.players.find(function (p) { return p.id === gameState.activePlayer; }) || gameState.players[0];
+  }
+
+  function getCurrentPlayerId() {
+    if (!gameState) return 1;
+    return gameState.activePlayer;
+  }
+
+  function renderAuction(state) {
+    if (!state || state.phase !== 'auction') return;
+    var card = state.currentAuctionCard;
+    // Update round info
+    var roundEl = document.getElementById('auction-round-info');
+    if (roundEl) roundEl.textContent = 'Round ' + (state.auctionRound + 1) + ' of ' + state.totalAuctionRounds;
+
+    // Card display
+    var imgEl = document.getElementById('auction-card-img');
+    var nameEl = document.getElementById('auction-card-name');
+    var effectEl = document.getElementById('auction-card-effect');
+    var statsEl = document.getElementById('auction-card-stats');
+    if (imgEl && card && card.image) {
+      imgEl.src = card.image;
+      imgEl.alt = card.name;
+      imgEl.style.display = 'block';
+      imgEl.onerror = function () { imgEl.style.display = 'none'; };
+    } else if (imgEl) {
+      imgEl.style.display = 'none';
+    }
+    if (nameEl && card) nameEl.textContent = card.name;
+    if (effectEl && card) effectEl.textContent = card.effect || '';
+    if (statsEl && card) {
+      var parts = [];
+      if (card.type === 'card') { parts.push('Cost: ' + card.cost); if (card.atk) parts.push('ATK: ' + card.atk); if (card.def) parts.push('HP: ' + card.def); }
+      if (card.type === 'token') parts.push('HP: ' + card.hp);
+      statsEl.textContent = parts.join(' · ');
+    }
+
+    // Player list with chips and bid status
+    var listEl = document.getElementById('auction-player-list');
+    if (listEl) {
+      listEl.innerHTML = '';
+      state.players.forEach(function (p) {
+        var div = document.createElement('div');
+        div.className = 'auction-player';
+        var bid = state.bids[p.id] !== undefined ? state.bids[p.id] : '?';
+        div.innerHTML = '<div class="name">' + p.name + '</div>' +
+          '<div class="chips">Chips: ' + p.biddingChips + '</div>' +
+          '<div class="status">Bid: ' + bid + '</div>';
+        listEl.appendChild(div);
+      });
+    }
+
+    // Bid input max
+    var inp = document.getElementById('bid-amount');
+    var p = getCurrentPlayer();
+    if (inp && p) inp.max = p.biddingChips;
+
+    // Auction log
+    var logEl = document.getElementById('auction-log');
+    if (logEl && state.turnLog) {
+      var recent = state.turnLog.slice(-6);
+      logEl.innerHTML = recent.map(function (e) { return '<div>' + e.msg + '</div>'; }).join('');
+    }
+
+    // In shared mode, show bid area for all players
+    var bidArea = document.getElementById('auction-bid-area');
+    if (bidArea) bidArea.style.display = 'block';
+  }
+
   // ========== GAME INIT ==========
 
   function startSharedGame() {
@@ -1366,17 +1511,17 @@
     if (!name1) return;
     var name2 = prompt('Enter Player 2 name:', 'Player 2');
     if (!name2) return;
-    var state = Engine.createGame([name1.trim() || 'Player 1', name2.trim() || 'Player 2'], 'shared');
-    var startResult = Engine.startTurn(state);
-    gameState = startResult.newState;
+    gameState = Engine.createGame([name1.trim() || 'Player 1', name2.trim() || 'Player 2'], 'shared');
     clearUiSelections();
     dom.lobby.style.display = 'none';
-    dom.gameScreen.style.display = 'block';
+    dom.gameScreen.style.display = 'none';
     dom.victoryScreen.style.display = 'none';
     dom.passOverlay.style.display = 'none';
     dom.targetingOverlay.style.display = 'none';
     dom.logPanel.style.display = 'none';
-    renderAll(gameState);
+    // Show auction screen
+    showAuctionScreen();
+    renderAuction(gameState);
   }
 
   // ========== EVENT WIRING ==========
@@ -1483,10 +1628,26 @@
     });
   }
 
+  // ========== AUCTION EVENT WIRING ==========
+  function wireAuctionEvents() {
+    var btnSubmitBid = document.getElementById('btn-submit-bid');
+    if (btnSubmitBid) {
+      btnSubmitBid.addEventListener('click', submitPlayerBid);
+    }
+    var bidInp = document.getElementById('bid-amount');
+    if (bidInp) {
+      bidInp.addEventListener('input', onBidChange);
+      bidInp.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') submitPlayerBid();
+      });
+    }
+  }
+
   // ========== BOOT ==========
   function init() {
     cacheDom();
     wireEvents();
+    wireAuctionEvents();
   }
 
   if (document.readyState === 'loading') {

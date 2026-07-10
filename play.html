@@ -26,6 +26,30 @@
       <button id="btn-start" style="display:none">Start Game</button>
     </div>
 
+    <!-- Auction screen -->
+    <div id="auction-screen" style="display:none">
+      <div id="auction-header">
+        <h2>Auction Phase</h2>
+        <span id="auction-round-info"></span>
+      </div>
+      <div id="auction-card-display">
+        <img id="auction-card-img" class="auction-img" src="" alt="" style="display:none">
+        <div id="auction-card-name"></div>
+        <div id="auction-card-effect"></div>
+        <div id="auction-card-stats"></div>
+      </div>
+      <div id="auction-players">
+        <h3>Players</h3>
+        <div id="auction-player-list"></div>
+      </div>
+      <div id="auction-bid-area">
+        <label>Your Bid: <input type="number" id="bid-amount" min="0" max="999" value="0"></label>
+        <button id="btn-submit-bid">Submit Bid</button>
+        <p id="bid-status"></p>
+      </div>
+      <div id="auction-log"></div>
+    </div>
+
     <!-- Game screen (hidden initially) -->
     <div id="game-screen" style="display:none">
       <div id="status-bar">
