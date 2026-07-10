@@ -100,6 +100,11 @@
     return state;
   };
 
+  // Shared helper: is this card a bot (playable to a board position)?
+  function isBotCard(card) {
+    return card && ['Active', 'Secondary', 'Defensive', 'Support'].indexOf(card.category) !== -1;
+  }
+
   // Draw a card from player's deck
   ENGINE.drawCard = function (state, playerId) {
     const s = ENGINE.clone(state);
@@ -109,7 +114,14 @@
     if (!p.deck.length && !p.discard.length) return { newState: s, logEntry: null, error: 'No cards to draw' };
     if (!p.deck.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
     const card = p.deck.pop();
-    p.hand.push(card);
+    // Auto-bench: bot cards go straight to the bench (hand fallback if full)
+    if (isBotCard(card)) {
+      const bIdx = p.board.bench.findIndex(b => b === null);
+      if (bIdx !== -1) { p.board.bench[bIdx] = card; }
+      else { p.hand.push(card); }
+    } else {
+      p.hand.push(card);
+    }
     p.ap -= 1;
     s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} drew a card.` });
     return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
@@ -126,7 +138,14 @@
     if (p.deck.length || p.discard.length) {
       if (!p.deck.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
       const card = p.deck.pop();
-      p.hand.push(card);
+      // Auto-bench: bot cards go straight to the bench (hand fallback if full)
+      if (isBotCard(card)) {
+        const bIdx = p.board.bench.findIndex(b => b === null);
+        if (bIdx !== -1) { p.board.bench[bIdx] = card; }
+        else { p.hand.push(card); }
+      } else {
+        p.hand.push(card);
+      }
       s.turnLog.push({ time: Date.now(), playerId: p.id, msg: `${p.name} drew 1 card (turn start).` });
     }
     return { newState: s };
@@ -628,13 +647,8 @@
     p.ap -= 1;
     p.hand.push(card);
     s.marketRow.splice(marketIndex, 1);
-    // Refill market
-    if (s.marketDeck.length) s.marketRow.push(s.marketDeck.pop());
-    else if (s.players.find(pl => pl.discard.length)) {
-      const pool = [];
-      for (const pl of s.players) { pool.push(...pl.discard); pl.discard = []; }
-      if (pool.length) { s.marketDeck = ENGINE.shuffle(pool); s.marketRow.push(s.marketDeck.pop()); }
-    }
+    // Refill market from market deck only (don't steal player discards)
+    if (s.marketDeck.length) { s.marketRow.push(s.marketDeck.pop()); }
     s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} bought ${card.name} from market (-${card.cost} credits).` });
     return { newState: s };
   };
@@ -770,7 +784,14 @@
         if (s.marketDeck.length) s.marketRow.push(s.marketDeck.pop());
       }
 
-      s.turnLog.push({ time: Date.now(), msg: 'Auction complete! Game begins.' });
+      // Draw 5 cards for each player, then start player 1's turn
+      for (const p of s.players) {
+        for (let i = 0; i < 5; i++) {
+          if (!p.deck.length && p.discard.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
+          if (p.deck.length) p.hand.push(p.deck.pop());
+        }
+      }
+      s.turnLog.push({ time: Date.now(), msg: 'Auction complete! Each player draws 5 cards. Game begins.' });
 
       // Start player 1's turn
       const result = ENGINE.startTurn(s);
