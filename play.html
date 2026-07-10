@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Bot Builders — Play Online</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="play.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">⚙</span> Bot Builders</div>
+    <div class="tagline">Play Online</div>
+  </header>
+  <main id="game-root">
+    <!-- Lobby screen -->
+    <div id="lobby">
+      <h2>Start a Game</h2>
+      <button id="btn-shared">Shared-Screen (2 Players)</button>
+      <p>or</p>
+      <button id="btn-host">Host Game</button>
+      <button id="btn-join">Join Game</button>
+      <input id="join-code" placeholder="Room code (e.g. ABCD)" maxlength="4" style="text-transform:uppercase">
+      <input id="player-name" placeholder="Your name" maxlength="12">
+      <div id="lobby-players"></div>
+      <button id="btn-start" style="display:none">Start Game</button>
+    </div>
+
+    <!-- Game screen (hidden initially) -->
+    <div id="game-screen" style="display:none">
+      <div id="status-bar">
+        <span id="ap-display">AP: 3</span>
+        <span id="credits-display">Credits: 5</span>
+        <span id="base-display">Base: 20 HP</span>
+        <button id="btn-log">Log</button>
+        <button id="btn-end-turn">End Turn</button>
+      </div>
+      <div id="board">
+        <div class="slot" data-slot="active"><h4>ACTIVE</h4><div class="slot-card"></div></div>
+        <div class="slot" data-slot="secondary"><h4>SECONDARY</h4><div class="slot-card"></div></div>
+        <div class="slot" data-slot="defensive"><h4>DEFENSIVE</h4><div class="slot-card"></div></div>
+        <div class="slot" data-slot="support"><h4>SUPPORT</h4><div class="slot-card"></div></div>
+      </div>
+      <div id="bench"><h4>BENCH</h4><div id="bench-slots"></div></div>
+      <div id="market-row"><h4>MARKET</h4><div id="market-cards"></div></div>
+      <div id="hand"><h4>HAND</h4><div id="hand-cards"></div></div>
+      <div id="enemy-boxes"></div>
+    </div>
+
+    <!-- Pass-device overlay (shared-screen) -->
+    <div id="pass-overlay" style="display:none">
+      <div id="pass-content"><h2>Pass to <span id="pass-player"></span></h2><button id="btn-continue">Tap to Continue</button></div>
+    </div>
+
+    <!-- Targeting overlay -->
+    <div id="targeting-overlay" style="display:none">
+      <div id="targeting-content">
+        <h3 id="targeting-header"></h3>
+        <button id="btn-back">Back</button>
+        <div id="targeting-board"></div>
+        <button id="btn-confirm">Confirm Attack</button>
+      </div>
+    </div>
+
+    <!-- Turn log panel -->
+    <div id="log-panel" style="display:none">
+      <h3>Turn Log</h3>
+      <button id="btn-close-log">Close</button>
+      <div id="log-entries"></div>
+    </div>
+
+    <!-- Victory screen -->
+    <div id="victory-screen" style="display:none">
+      <h2 id="victory-text"></h2>
+      <button id="btn-play-again">Play Again</button>
+    </div>
+  </main>
+  <script src="rulebook.js"></script>
+  <script src="assets.js"></script>
+  <script src="gallery-core.js"></script>
+  <script src="engine.js"></script>
+  <script src="play.js"></script>
+</body>
+</html>
