@@ -26,4 +26,6 @@ input { font-family: var(--font); font-size: 14px; padding: 8px; border: 2px sol
 #lobby button { margin: 6px; display: block; width: 280px; margin: 8px auto; }
 #lobby input { display: block; width: 280px; margin: 8px auto; }
 .selected { border-color: var(--accent) !important; box-shadow: 0 0 0 2px var(--accent); }
+.enemy-targetable { border-color: var(--accent) !important; animation: pulse-target 1.2s ease-in-out infinite; }
+@keyframes pulse-target { 0%,100% { box-shadow: 0 0 0 0 rgba(69,172,244,0.4); } 50% { box-shadow: 0 0 0 6px rgba(69,172,244,0.15); } }
 .damaged { color: #e74c3c; }

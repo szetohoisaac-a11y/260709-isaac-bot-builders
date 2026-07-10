@@ -262,9 +262,16 @@
     if (!p) return;
     var opponents = getOpponents(state);
     dom.enemyBoxes.innerHTML = '';
+    var inAttackMode = uiState.targeting && uiState.targeting.action === 'attack';
+    if (inAttackMode) {
+      var hint = document.createElement('div');
+      hint.style.cssText = 'width:100%;font-size:12px;color:var(--accent);font-weight:700;margin-bottom:6px;';
+      hint.textContent = 'Click an enemy to select a target for your attack.';
+      dom.enemyBoxes.appendChild(hint);
+    }
     opponents.forEach(function (opp) {
       var box = document.createElement('div');
-      box.className = 'enemy-box';
+      box.className = 'enemy-box' + (inAttackMode ? ' enemy-targetable' : '');
       box.innerHTML =
         '<h4>' + escHtml(opp.name) + '</h4>' +
         '<div class="hp">Base: ' + opp.baseHP + ' HP</div>' +
@@ -280,12 +287,13 @@
     if (!gameState) return;
     dom.logEntries.innerHTML = '';
     var log = gameState.turnLog || [];
-    var recent = log.slice(-30).reverse();
-    recent.forEach(function (entry) {
+    log.forEach(function (entry) {
       var div = document.createElement('div');
       div.textContent = (entry.msg || '');
       dom.logEntries.appendChild(div);
     });
+    // Auto-scroll to latest entry
+    dom.logEntries.scrollTop = dom.logEntries.scrollHeight;
   }
 
   function countBotsOnBoard(player) {
@@ -325,6 +333,8 @@
     if (!gameState) return;
     var targetPlayer = playerById(gameState, targetPlayerId);
     if (!targetPlayer) return;
+    var p = getPlayer(gameState);
+    var attackingBot = p && uiState.selectedSlot ? p.board[uiState.selectedSlot] : null;
     uiState.targeting = {
       action: 'attack',
       botPosition: uiState.selectedSlot,
@@ -332,8 +342,12 @@
       targetType: null,
       targetPosition: null,
     };
-    dom.targetingHeader.textContent = 'Target: ' + targetPlayer.name;
+    var header = 'Select target for ' + (attackingBot ? escHtml(attackingBot.name) : 'attack');
+    dom.targetingHeader.textContent = header;
     dom.targetingBoard.innerHTML = '';
+    dom.btnConfirm.textContent = 'Confirm Attack';
+    // Reset confirm to attack flow handler
+    dom.btnConfirm._handler = 'attack';
     var positions = ['active', 'secondary', 'defensive', 'support'];
     // Show enemy board positions
     positions.forEach(function (pos) {
@@ -341,19 +355,20 @@
       var el = document.createElement('div');
       el.className = 'target-slot';
       el.style.cssText =
-        'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;';
+        'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
       if (bot) {
-        el.innerHTML = '<strong>' + escHtml(bot.name) + '</strong><br>ATK ' + (bot.atk || 0) + ' HP ' + (bot.def || 0);
+        el.innerHTML = '<strong>' + escHtml(bot.name) + '</strong><br><span class="atk">ATK ' + (bot.atk || 0) + '</span> <span class="hp">HP ' + (bot.def || 0) + '</span>';
+        el.addEventListener('click', function () {
+          uiState.targeting.targetType = 'bot';
+          uiState.targeting.targetPosition = pos;
+          highlightTargetSelection(el, dom.targetingBoard);
+          dom.btnConfirm.disabled = false;
+        });
       } else {
-        el.innerHTML = '<em>empty</em>';
+        el.innerHTML = '<em style="color:var(--muted)">empty slot</em>';
+        el.style.opacity = '0.5';
+        el.style.cursor = 'default';
       }
-      el.addEventListener('click', function () {
-        // Select this position
-        uiState.targeting.targetType = 'bot';
-        uiState.targeting.targetPosition = pos;
-        highlightTargetSelection(el, dom.targetingBoard);
-        dom.btnConfirm.disabled = false;
-      });
       if (uiState.targeting.targetPosition === pos && uiState.targeting.targetType === 'bot') {
         el.classList.add('selected');
       }
@@ -363,8 +378,10 @@
     var baseEl = document.createElement('div');
     baseEl.className = 'target-slot';
     baseEl.style.cssText =
-      'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;';
-    baseEl.innerHTML = '<strong>Attack Base</strong><br><span class="hp">HP: ' + targetPlayer.baseHP + '</span>';
+      'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
+    var breacherBonus = (attackingBot && attackingBot.name === 'Breacher') ? ' (bypasses defenses)' : '';
+    baseEl.innerHTML = '<strong>Attack Base</strong><br><span class="hp">HP: ' + targetPlayer.baseHP + '</span>' +
+      (breacherBonus ? '<br><span style="font-size:11px;color:#e74c3c;font-weight:700;">' + breacherBonus + '</span>' : '');
     baseEl.addEventListener('click', function () {
       uiState.targeting.targetType = 'base';
       uiState.targeting.targetPosition = null;
@@ -530,6 +547,14 @@
     if (!targetPlayer) return;
     dom.targetingHeader.textContent = 'Use ' + abilityName + ' — Select Target';
     dom.targetingBoard.innerHTML = '';
+    dom.btnConfirm.textContent = 'Confirm Ability';
+    // Initialize targeting state
+    uiState.targeting = {
+      action: 'ability',
+      abilityName: abilityName,
+      targetPlayerId: playerId,
+      targetPosition: null,
+    };
     var positions = ['active', 'secondary', 'defensive', 'support'];
     positions.forEach(function (pos) {
       var bot = targetPlayer.board[pos];
@@ -537,23 +562,16 @@
       var el = document.createElement('div');
       el.className = 'target-slot';
       el.style.cssText =
-        'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;';
-      el.innerHTML = '<strong>' + escHtml(bot.name) + '</strong><br>HP ' + (bot.def || 0);
+        'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
+      el.innerHTML = '<strong>' + escHtml(bot.name) + '</strong><br><span class="hp">HP ' + (bot.def || 0) + '</span>';
       el.addEventListener('click', function () {
-        uiState.targeting = {
-          action: 'ability',
-          abilityName: abilityName,
-          targetPlayerId: playerId,
-          targetPosition: pos,
-        };
+        uiState.targeting.targetPosition = pos;
         highlightTargetSelection(el, dom.targetingBoard);
         dom.btnConfirm.disabled = false;
       });
       dom.targetingBoard.appendChild(el);
     });
     dom.btnConfirm.disabled = true;
-    // Override confirm for ability
-    dom.btnConfirm.onclick = confirmAbility;
     dom.targetingOverlay.style.display = 'flex';
   }
 
@@ -726,8 +744,12 @@
       dom.targetingBoard.appendChild(el);
     });
     dom.btnConfirm.disabled = true;
-    dom.btnConfirm.onclick = function () {
-      confirmInstant(card, selectedTargets);
+    // Wire confirm via unified dispatch
+    uiState.targeting = {
+      action: 'instant',
+      _instantConfirm: function () {
+        confirmInstant(card, selectedTargets);
+      },
     };
     dom.targetingOverlay.style.display = 'flex';
   }
@@ -871,10 +893,19 @@
       dom.logPanel.style.display = 'none';
     });
 
-    // Pass overlay
-    dom.btnContinue.addEventListener('click', function () {
+    // Pass overlay — tap anywhere to dismiss
+    dom.passOverlay.addEventListener('click', function () {
       dom.passOverlay.style.display = 'none';
     });
+    dom.btnContinue.addEventListener('click', function (e) {
+      e.stopPropagation();
+      dom.passOverlay.style.display = 'none';
+    });
+    // Don't dismiss when clicking inside the content box itself
+    var passContent = dom.passOverlay.querySelector('#pass-content');
+    if (passContent) {
+      passContent.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
 
     // Targeting overlay
     dom.btnBack.addEventListener('click', function () {
@@ -883,14 +914,18 @@
       uiState.selectedCard = null;
     });
     dom.btnConfirm.addEventListener('click', function () {
-      // Determine which confirm action to use based on targeting state
+      // Use dynamic handler if set, else dispatch by targeting action
       if (uiState.targeting) {
         if (uiState.targeting.action === 'attack') {
           confirmAttack();
         } else if (uiState.targeting.action === 'ability') {
           confirmAbility();
+        } else if (uiState.targeting.action === 'instant') {
+          // Instant confirm handled via storage on uiState
+          if (uiState.targeting._instantConfirm) {
+            uiState.targeting._instantConfirm();
+          }
         }
-        // instant confirm is set directly on the button
       }
     });
 
