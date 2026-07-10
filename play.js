@@ -92,7 +92,26 @@
   }
 
   function cardById(id) {
+    // Try _uid first (instance lookup in hand/board/bench), then id (template lookup)
     var all = Engine.loadCards();
+    var found = all.find(function (c) { return c._uid === id; });
+    if (found) return found;
+    // Look in current game state
+    if (gameState) {
+      var p = getPlayer(gameState);
+      if (p) {
+        var inHand = p.hand.find(function (c) { return c._uid === id; });
+        if (inHand) return inHand;
+        var inBoard = ['active','secondary','defensive','support'].reduce(function (acc, pos) {
+          if (acc) return acc;
+          return (p.board[pos] && p.board[pos]._uid === id) ? p.board[pos] : null;
+        }, null);
+        if (inBoard) return inBoard;
+        var inBench = p.board.bench.find(function (c) { return c && c._uid === id; });
+        if (inBench) return inBench;
+      }
+    }
+    // Fallback: template lookup by id
     return all.find(function (c) { return c.id === id; });
   }
 
@@ -319,7 +338,7 @@
       cardEl.addEventListener('click', function () {
         onHandCardClick(card);
       });
-      if (uiState.selectedCard === card.id) cardEl.classList.add('selected');
+      if (uiState.selectedCard === (card._uid || card.id)) cardEl.classList.add('selected');
       dom.handCards.appendChild(cardEl);
     });
   }
@@ -793,14 +812,14 @@
     var p = getPlayer(gameState);
     if (!p) return;
     // Toggle selection
-    if (uiState.selectedCard === card.id) {
+    if (uiState.selectedCard === (card._uid || card.id)) {
       uiState.selectedCard = null;
       clearUiSelections();
       renderAll(gameState);
       renderActionButtons();
       return;
     }
-    uiState.selectedCard = card.id;
+    uiState.selectedCard = card._uid || card.id;
     uiState.selectedSlot = null;
     // If instant or trap, handle immediately
     if (isInstantCard(card)) {
@@ -821,17 +840,17 @@
     if (!p) return;
     // Some instants need targets
     if (['Scrap Bomb', 'Overdrive', 'Hack', 'EMP Blast', 'System Shock'].indexOf(card.name) !== -1) {
-      uiState.selectedCard = card.id;
+      uiState.selectedCard = card._uid || card.id;
       openInstantTargeting(card);
       return;
     }
     // Self-targeting instants: play immediately
     if (isNetworkMode()) {
       clearUiSelections();
-      networkAction({ type: 'PLAY_INSTANT', cardId: card.id, targets: [] });
+      networkAction({ type: 'PLAY_INSTANT', cardId: (card._uid || card.id), targets: [] });
       return;
     }
-    var result = Engine.playInstant(gameState, p.id, card.id, []);
+    var result = Engine.playInstant(gameState, p.id, (card._uid || card.id), []);
     if (result.error) {
       alert(result.error);
       return;
@@ -847,10 +866,10 @@
     if (!p) return;
     if (isNetworkMode()) {
       clearUiSelections();
-      networkAction({ type: 'PLAY_TRAP', cardId: card.id });
+      networkAction({ type: 'PLAY_TRAP', cardId: (card._uid || card.id) });
       return;
     }
-    var result = Engine.playTrap(gameState, p.id, card.id);
+    var result = Engine.playTrap(gameState, p.id, (card._uid || card.id));
     if (result.error) {
       alert(result.error);
       return;
@@ -937,10 +956,10 @@
       dom.targetingOverlay.style.display = 'none';
       uiState.targeting = null;
       clearUiSelections();
-      networkAction({ type: 'PLAY_INSTANT', cardId: card.id, targets: targets });
+      networkAction({ type: 'PLAY_INSTANT', cardId: (card._uid || card.id), targets: targets });
       return;
     }
-    var result = Engine.playInstant(gameState, p.id, card.id, targets);
+    var result = Engine.playInstant(gameState, p.id, (card._uid || card.id), targets);
     if (result.error) {
       alert(result.error);
       return;

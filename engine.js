@@ -1,6 +1,8 @@
 // engine.js — Pure JS game engine. No DOM or Node dependencies.
 (function () {
   const ENGINE = {};
+  let _globalUid = 0;
+  const stampUid = (card) => { const c = {...card}; c._uid = String(++_globalUid); return c; };
 
   // Copy a state object deeply (simple JSON-safe objects only)
   ENGINE.clone = (s) => JSON.parse(JSON.stringify(s));
@@ -48,12 +50,12 @@
     const x4 = ['Scrap Bomb','Overdrive','Salvage','Emergency Repair','Hack','Parts Scavenge','EMP Blast','Ambush','Failsafe','Counter-Hack','Tripwire','Signal Jam','Retreat Order'];
     const byName = {};
     for (const c of allCards) byName[c.name] = c;
-    const addCopies = (names, n) => { for (const nm of names) { const card = byName[nm]; if (card) for (let i=0;i<n;i++) botShop.push({...card}); } };
+    const addCopies = (names, n) => { for (const nm of names) { const card = byName[nm]; if (card) for (let i=0;i<n;i++) botShop.push(stampUid(card)); } };
     addCopies(x2, 2); addCopies(x3, 3); addCopies(x4, 4);
 
     // Starting deck per player (13 baseline cards)
     const starter = [];
-    const addStarter = (name, n) => { const card = byName[name]; if (card) for (let i=0;i<n;i++) starter.push({...card}); };
+    const addStarter = (name, n) => { const card = byName[name]; if (card) for (let i=0;i<n;i++) starter.push(stampUid(card)); };
     addStarter('Striker',1); addStarter('Brawler',1); addStarter('Scout',1); addStarter('Shield Drone',1);
     addStarter('Repair Bot',2); addStarter('Salvage',3); addStarter('Parts Scavenge',2);
     addStarter('Retreat Order',2); addStarter('Emergency Repair',1); addStarter('Failsafe',1);
@@ -173,7 +175,7 @@
     const p = s.players.find(pl => pl.id === playerId);
     if (!p) return { newState: s, error: 'Player not found' };
     if (p.ap < 1) return { newState: s, error: 'Not enough AP' };
-    const idx = p.hand.findIndex(c => c.id === cardId && (c.type === 'card'));
+    const idx = p.hand.findIndex(c => (c._uid === cardId || (c._uid === cardId || c.id === cardId)) && (c.type === 'card'));
     if (idx === -1) return { newState: s, error: 'Card not in hand' };
     if (!['active','secondary','defensive','support','bench'].includes(position)) {
       return { newState: s, error: 'Invalid position' };
@@ -469,7 +471,7 @@
     const p = s.players.find(pl => pl.id === playerId);
     if (!p) return { newState: s, error: 'Player not found' };
     if (p.ap < 1) return { newState: s, error: 'Not enough AP' };
-    const idx = p.hand.findIndex(c => c.id === cardId);
+    const idx = p.hand.findIndex(c => (c._uid === cardId || c.id === cardId));
     if (idx === -1) return { newState: s, error: 'Card not in hand' };
     const card = p.hand[idx];
     // Check credit cost
@@ -557,7 +559,7 @@
     const s = ENGINE.clone(state);
     const p = s.players.find(pl => pl.id === playerId);
     if (!p || p.ap < 1) return { newState: s, error: 'Not enough AP' };
-    const idx = p.hand.findIndex(c => c.id === cardId);
+    const idx = p.hand.findIndex(c => (c._uid === cardId || c.id === cardId));
     if (idx === -1) return { newState: s, error: 'Card not in hand' };
     const card = p.hand.splice(idx, 1)[0];
     p.traps.push(card);
@@ -790,7 +792,7 @@
       for (const p of s.players) {
         for (const [name, n] of starterNames) {
           const card = byName[name];
-          if (card) for (let i = 0; i < n; i++) p.deck.push({...card});
+          if (card) for (let i = 0; i < n; i++) p.deck.push(stampUid(card));
         }
         p.deck = ENGINE.shuffle(p.deck);
       }
