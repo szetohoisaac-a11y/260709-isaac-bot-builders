@@ -590,6 +590,7 @@
     dom.targetingOverlay.style.display = 'none';
     clearUiSelections();
     renderAll(gameState);
+    checkWinAfterAction();
   }
 
   function startSwapFlow() {
@@ -768,6 +769,7 @@
     clearUiSelections();
     renderAll(gameState);
     renderActionButtons();
+    checkWinAfterAction();
   }
 
   function playCardToPosition(cardId, position) {
@@ -839,9 +841,87 @@
     if (!gameState) return;
     var result = Engine.checkWin(gameState);
     if (result.winner) {
-      dom.victoryText.textContent = result.winner.name + ' Wins!';
-      dom.victoryScreen.style.display = 'flex';
+      var loser = gameState.players.find(function (p) { return p.id !== result.winner.id; });
+      displayVictoryWithScavenge(result.winner, loser);
     }
+  }
+
+  function displayVictoryWithScavenge(winner, loser) {
+    // Clean up any previous scavenge UI elements
+    var oldOpts = document.getElementById('scavenge-options');
+    if (oldOpts) oldOpts.remove();
+    var oldSkip = document.getElementById('scavenge-skip');
+    if (oldSkip) oldSkip.remove();
+    dom.btnPlayAgain.style.display = 'none';
+
+    dom.victoryText.textContent = winner.name + ' Wins! Scavenge a bot from ' + loser.name + '\'s board.';
+
+    var optionsDiv = document.createElement('div');
+    optionsDiv.id = 'scavenge-options';
+    optionsDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0;';
+
+    var positions = ['active', 'secondary', 'defensive', 'support'];
+    var hasBots = false;
+
+    positions.forEach(function (pos) {
+      var bot = loser.board[pos];
+      if (bot) {
+        hasBots = true;
+        var btn = document.createElement('button');
+        btn.textContent = bot.name + ' (' + pos + ')';
+        btn.addEventListener('click', function () {
+          doScavenge(winner.id, loser.id, pos);
+        });
+        optionsDiv.appendChild(btn);
+      }
+    });
+
+    // Bench: show first available bot (engine.scavenge picks first bench slot)
+    var benchBot = null;
+    for (var bi = 0; bi < loser.board.bench.length; bi++) {
+      if (loser.board.bench[bi]) { benchBot = loser.board.bench[bi]; break; }
+    }
+    if (benchBot) {
+      hasBots = true;
+      var benchBtn = document.createElement('button');
+      benchBtn.textContent = benchBot.name + ' (bench)';
+      benchBtn.addEventListener('click', function () {
+        doScavenge(winner.id, loser.id, 'bench');
+      });
+      optionsDiv.appendChild(benchBtn);
+    }
+
+    if (!hasBots) {
+      optionsDiv.innerHTML = '<p style="color:var(--muted);margin:8px 0;">No bots available to scavenge.</p>';
+    }
+
+    dom.victoryScreen.insertBefore(optionsDiv, dom.btnPlayAgain);
+
+    var skipBtn = document.createElement('button');
+    skipBtn.id = 'scavenge-skip';
+    skipBtn.textContent = hasBots ? 'Skip Scavenge' : 'OK';
+    skipBtn.addEventListener('click', function () {
+      var opts = document.getElementById('scavenge-options');
+      if (opts) opts.remove();
+      this.remove();
+      dom.btnPlayAgain.style.display = 'inline-block';
+      dom.victoryText.textContent = winner.name + ' Wins!';
+    });
+    dom.victoryScreen.insertBefore(skipBtn, dom.btnPlayAgain);
+
+    dom.victoryScreen.style.display = 'flex';
+  }
+
+  function doScavenge(winnerId, loserId, position) {
+    var result = Engine.scavenge(gameState, winnerId, loserId, position);
+    gameState = result.newState;
+    var opts = document.getElementById('scavenge-options');
+    if (opts) opts.remove();
+    var skipBtn = document.getElementById('scavenge-skip');
+    if (skipBtn) skipBtn.remove();
+    var winner = gameState.players.find(function (p) { return p.id === winnerId; });
+    dom.victoryText.textContent = winner.name + ' scavenged a bot!';
+    dom.btnPlayAgain.style.display = 'inline-block';
   }
 
   // ========== GAME INIT ==========
@@ -936,6 +1016,14 @@
       dom.lobby.style.display = 'block';
       gameState = null;
       clearUiSelections();
+      // Clean up scavenge UI elements
+      var oldOpts = document.getElementById('scavenge-options');
+      if (oldOpts) oldOpts.remove();
+      var oldSkip = document.getElementById('scavenge-skip');
+      if (oldSkip) oldSkip.remove();
+      dom.btnPlayAgain.style.display = 'inline-block';
+      uiState.winnerId = null;
+      uiState.loserId = null;
     });
   }
 
