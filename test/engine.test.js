@@ -16,8 +16,13 @@ test('createGame builds state with correct player count', () => {
   assert.equal(s.players[0].baseHP, 20);
   assert.equal(s.players[0].credits, 5);
   assert.equal(s.mode, 'shared');
-  assert.equal(s.marketRow.length, 3);
+  assert.equal(s.phase, 'auction');
+  assert.equal(s.auctionRound, 0);
+  assert.equal(s.totalAuctionRounds, 14); // 10 + 2*2
+  assert.ok(s.auctionPool.length === 14);
+  assert.ok(s.currentAuctionCard);
   assert.ok(s.marketDeck.length > 0);
+  // marketRow filled after auction
 });
 
 test('startTurn refills AP and draws a card', () => {
@@ -215,4 +220,41 @@ test('scavenge takes bot from eliminated player', () => {
   const result = E.scavenge(s, 1, 2, 'active');
   assert.equal(result.newState.players[1].board.active, null);
   assert.equal(result.newState.players[0].board.bench[0].name, 'Striker');
+});
+
+// ── Auction tests ──────────────────────────────────────
+
+test('submit bid records player bid', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  const result = E.submitBid(s, 1, 50);
+  assert.equal(result.newState.bids[1], 50);
+});
+
+test('auction resolves when all players bid — highest wins', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  const r1 = E.submitBid(s, 1, 50);
+  assert.equal(r1.newState.auctionRound, 0);
+  const r2 = E.submitBid(r1.newState, 2, 30);
+  assert.equal(r2.newState.auctionRound, 1);
+  assert.equal(r2.newState.players[0].biddingChips, 100);
+});
+
+test('auction tie triggers re-bid', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  const r1 = E.submitBid(s, 1, 30);
+  const r2 = E.submitBid(r1.newState, 2, 30);
+  assert.ok(r2.tie);
+  assert.deepEqual(r2.tiedPlayers, [1, 2]);
+});
+
+test('complete auction transitions to playing phase', () => {
+  const s = E.createGame(['Alice'], 'shared');
+  let state = s;
+  while (state.phase === 'auction') {
+    state = E.submitBid(state, 1, 0).newState;
+  }
+  assert.equal(state.phase, 'playing');
+  assert.ok(state.players[0].deck.length > 0);
+  assert.equal(state.marketRow.length, 3);
+  assert.equal(state.players[0].ap, 3);
 });

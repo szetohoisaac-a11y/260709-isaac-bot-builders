@@ -58,12 +58,20 @@
     addStarter('Repair Bot',2); addStarter('Salvage',3); addStarter('Parts Scavenge',2);
     addStarter('Retreat Order',2); addStarter('Emergency Repair',1); addStarter('Failsafe',1);
 
+    const playerCount = playerNames.length;
+    const biddingChips = Math.floor(300 / playerCount);
+    const totalAuctionRounds = 10 + (2 * playerCount);
+    // Build auction pool: shuffle market deck, take first totalAuctionRounds cards
+    const auctionPool = ENGINE.shuffle(botShop.slice()).slice(0, totalAuctionRounds);
+    const remainingMarket = ENGINE.shuffle(botShop.slice()).slice(totalAuctionRounds);
+
     const players = playerNames.map((name, i) => ({
       id: i + 1,
       name,
       baseHP: 20,
       credits: 5,
-      deck: ENGINE.shuffle(starter.slice()),
+      biddingChips,
+      deck: [],  // filled after auction with starter + won cards
       hand: [],
       discard: [],
       board: { active: null, secondary: null, defensive: null, support: null, bench: new Array(6).fill(null) },
@@ -73,21 +81,21 @@
     }));
 
     const state = {
-      phase: 'playing',
+      phase: 'auction',
       mode: mode || 'shared',
       turn: 0,
       activePlayer: 1,
       players,
+      auctionPool,
+      auctionRound: 0,
+      totalAuctionRounds,
+      currentAuctionCard: auctionPool.length > 0 ? auctionPool[0] : null,
+      bids: {},  // { playerId: amount }
       marketRow: [],
-      marketDeck: ENGINE.shuffle(botShop),
-      turnLog: [],
+      marketDeck: remainingMarket,
+      turnLog: [{ time: Date.now(), msg: `Auction begins! ${totalAuctionRounds} cards. Each player has ${biddingChips} bidding chips.` }],
       winner: null,
     };
-
-    // Fill market row with 3 cards
-    for (let i = 0; i < 3; i++) {
-      if (state.marketDeck.length) state.marketRow.push(state.marketDeck.pop());
-    }
 
     return state;
   };
@@ -656,6 +664,112 @@
     if (bIdx !== -1) winner.board.bench[bIdx] = bot;
     else winner.hand.push(bot);
     s.turnLog.push({ time: Date.now(), playerId: winnerId, msg: `${winner.name} scavenged ${bot.name} from ${loser.name}!` });
+    return { newState: s };
+  };
+
+  // ── Auction Phase ───────────────────────────────────────
+
+  ENGINE.submitBid = function (state, playerId, amount) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (!p) return { newState: s, error: 'Player not found' };
+    if (s.phase !== 'auction') return { newState: s, error: 'Not in auction phase' };
+    if (amount < 0 || amount > p.biddingChips) return { newState: s, error: 'Invalid bid amount' };
+    if (s.bids[playerId] !== undefined) return { newState: s, error: 'Already bid this round' };
+    s.bids[playerId] = amount;
+    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} submitted a bid.` });
+    // Check if all alive players have bid
+    const alive = s.players.filter(pl => pl.baseHP > 0);
+    const allBid = alive.every(pl => s.bids[pl.id] !== undefined);
+    if (allBid) {
+      return ENGINE.resolveAuctionRound(s);
+    }
+    return { newState: s };
+  };
+
+  ENGINE.resolveAuctionRound = function (state) {
+    const s = ENGINE.clone(state);
+    const card = s.currentAuctionCard;
+    if (!card) return { newState: s, error: 'No auction card' };
+    const bids = s.bids;
+    const alive = s.players.filter(pl => pl.baseHP > 0);
+
+    // Find highest bid
+    let maxBid = 0;
+    let winnerIds = [];
+    for (const pl of alive) {
+      const bid = bids[pl.id] || 0;
+      if (bid > maxBid) { maxBid = bid; winnerIds = [pl.id]; }
+      else if (bid === maxBid && bid > 0) { winnerIds.push(pl.id); }
+    }
+
+    // If all bid 0, no one wins the card — discard it
+    if (maxBid === 0) {
+      s.turnLog.push({ time: Date.now(), msg: `No bids on ${card.name} — card discarded.` });
+    } else if (winnerIds.length > 1) {
+      // Tie: re-bid required. Log it and reset bids for tied players only
+      const tied = winnerIds.map(id => s.players.find(p => p.id === id).name).join(', ');
+      s.turnLog.push({ time: Date.now(), msg: `Tie between ${tied}! Re-bid for ${card.name}.` });
+      // Reset bids, but only tied players can re-bid
+      // We mark this by clearing bids and setting a reBidPlayers field
+      s._tiePlayers = winnerIds;
+      s.bids = {};
+      return { newState: s, tie: true, tiedPlayers: winnerIds };
+    } else {
+      // One winner
+      const winnerId = winnerIds[0];
+      const winner = s.players.find(pl => pl.id === winnerId);
+      winner.biddingChips -= maxBid;
+      winner.deck.push(card);
+      s.turnLog.push({ time: Date.now(), msg: `${winner.name} won ${card.name} for ${maxBid} chips!` });
+    }
+
+    // Advance to next round
+    return ENGINE.nextAuctionCard(s);
+  };
+
+  ENGINE.nextAuctionCard = function (state) {
+    const s = ENGINE.clone(state);
+    s.auctionRound++;
+    s.bids = {};
+    delete s._tiePlayers;
+
+    if (s.auctionRound >= s.totalAuctionRounds || !s.auctionPool[s.auctionRound]) {
+      // Auction complete — start the game
+      s.phase = 'playing';
+      s.currentAuctionCard = null;
+
+      // Give each player their starter deck + shuffle
+      const allCards = ENGINE.loadCards();
+      const byName = {};
+      for (const c of allCards) byName[c.name] = c;
+      const starterNames = [
+        ['Striker',1],['Brawler',1],['Scout',1],['Shield Drone',1],
+        ['Repair Bot',2],['Salvage',3],['Parts Scavenge',2],
+        ['Retreat Order',2],['Emergency Repair',1],['Failsafe',1]
+      ];
+      for (const p of s.players) {
+        for (const [name, n] of starterNames) {
+          const card = byName[name];
+          if (card) for (let i = 0; i < n; i++) p.deck.push({...card});
+        }
+        p.deck = ENGINE.shuffle(p.deck);
+      }
+
+      // Fill market row
+      for (let i = 0; i < 3; i++) {
+        if (s.marketDeck.length) s.marketRow.push(s.marketDeck.pop());
+      }
+
+      s.turnLog.push({ time: Date.now(), msg: 'Auction complete! Game begins.' });
+
+      // Start player 1's turn
+      const result = ENGINE.startTurn(s);
+      return { newState: result.newState, auctionComplete: true };
+    }
+
+    s.currentAuctionCard = s.auctionPool[s.auctionRound];
+    s.turnLog.push({ time: Date.now(), msg: `Next auction card: ${s.currentAuctionCard.name}. Place your bids!` });
     return { newState: s };
   };
 
