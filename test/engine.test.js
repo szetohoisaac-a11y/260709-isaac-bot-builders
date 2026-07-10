@@ -125,3 +125,21 @@ test('spike wall reflects 2 damage', () => {
   // Striker should take 2 reflect damage
   assert.equal(result.newState.players[0].board.active.def, 3);
 });
+
+test('scout applies -1 ATK debuff on hit', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.turn = 5;
+  const result = E.secondaryOnHit(s, 1, 'Scout', 2, 'active');
+  const debuffs = result.newState.players[1].debuffs;
+  assert.equal(debuffs.length, 1);
+  assert.equal(debuffs[0].type, 'atk');
+  assert.equal(debuffs[0].amount, -1);
+});
+
+test('jammer discards a card from enemy hand', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.players[1].hand = [{ id: '026', type: 'card', name: 'Scrap Bomb', category: 'Instant', cost: 1, atk: 3, def: 0, effect: 'test', image: null }];
+  const result = E.secondaryOnHit(s, 1, 'Jammer', 2, 'active');
+  assert.equal(result.newState.players[1].hand.length, 0);
+  assert.equal(result.newState.players[1].discard.length, 1);
+});

@@ -68,6 +68,7 @@
       discard: [],
       board: { active: null, secondary: null, defensive: null, support: null, bench: new Array(6).fill(null) },
       traps: [],
+      debuffs: [],
       ap: 0,
     }));
 
@@ -310,6 +311,62 @@
       return { actualDamage: half, reflectedDamage: 0, defenderDamage: damage - half, silenceAttacker: true };
     }
     return { actualDamage: damage, reflectedDamage: 0, defenderDamage: 0 };
+  };
+
+  ENGINE.applyDebuff = function (state, targetPlayerId, targetPosition, type, amount, expiresTurn) {
+    const s = ENGINE.clone(state);
+    s.players.find(pl => pl.id === targetPlayerId).debuffs.push({
+      targetPosition, type, amount, expiresTurn
+    });
+    return { newState: s };
+  };
+
+  ENGINE.getDebuffs = function (state, playerId, position) {
+    const p = state.players.find(pl => pl.id === playerId);
+    return (p.debuffs || []).filter(d => d.targetPosition === position && d.expiresTurn > state.turn);
+  };
+
+  ENGINE.clearExpiredDebuffs = function (state) {
+    const s = ENGINE.clone(state);
+    for (const p of s.players) {
+      p.debuffs = (p.debuffs || []).filter(d => d.expiresTurn > s.turn);
+    }
+    return s;
+  };
+
+  // Execute a secondary bot's on-hit debuff effect
+  ENGINE.secondaryOnHit = function (state, playerId, botName, targetPlayerId, targetPosition) {
+    const s = ENGINE.clone(state);
+    const turn = s.turn;
+    switch (botName) {
+      case 'Scout':
+        s.players.find(pl => pl.id === targetPlayerId).debuffs.push({ targetPosition, type: 'atk', amount: -1, expiresTurn: turn + 2 });
+        s.turnLog.push({ time: Date.now(), playerId, msg: `Scout debuffed target: -1 ATK for 1 turn.` });
+        break;
+      case 'Disruptor':
+        s.players.find(pl => pl.id === targetPlayerId).debuffs.push({ targetPosition, type: 'noAbility', amount: 0, expiresTurn: turn + 2 });
+        s.turnLog.push({ time: Date.now(), playerId, msg: `Disruptor silenced target: cannot use abilities for 1 turn.` });
+        break;
+      case 'Harasser':
+        s.players.find(pl => pl.id === targetPlayerId).debuffs.push({ targetPosition, type: 'atk', amount: 'halve', expiresTurn: turn + 2 });
+        s.turnLog.push({ time: Date.now(), playerId, msg: `Harasser debuffed target: ATK halved for 1 turn.` });
+        break;
+      case 'Scrambler':
+        s.players.find(pl => pl.id === targetPlayerId).debuffs.push({ targetPosition, type: 'swapStats', amount: 0, expiresTurn: turn + 2 });
+        s.turnLog.push({ time: Date.now(), playerId, msg: `Scrambler swapped target's ATK and DEF for 1 turn.` });
+        break;
+      case 'Jammer':
+        // Discard 1 random card from defender's hand
+        const def = s.players.find(pl => pl.id === targetPlayerId);
+        if (def && def.hand.length) {
+          const idx = Math.floor(Math.random() * def.hand.length);
+          const disc = def.hand.splice(idx, 1)[0];
+          def.discard.push(disc);
+          s.turnLog.push({ time: Date.now(), playerId, msg: `Jammer forced ${def.name} to discard ${disc.name}.` });
+        }
+        break;
+    }
+    return { newState: s };
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
