@@ -121,6 +121,10 @@ function sanitizeForPlayer(state, playerId) {
       p.trapCount = state.players.find(sp => sp.id === p.id).traps.length;
     }
   }
+  // Hide pendingPlacement from other players
+  if (s.pendingPlacement && s.pendingPlacement.playerId !== playerId) {
+    s.pendingPlacement = null;
+  }
   return s;
 }
 
@@ -357,6 +361,11 @@ function handlePlayerAction(ws, msg, rm) {
     }
   }
 
+  // Block non-placement actions while a placement is pending for this player
+  if (room.state.pendingPlacement && room.state.pendingPlacement.playerId === player.id && action.type !== 'RESOLVE_PLACEMENT') {
+    return send(ws, { type: 'ERROR', error: 'Resolve your pending bot placement first' });
+  }
+
   // Handle the specific action
   const action = msg.action;
   if (!action || !action.type) {
@@ -414,6 +423,10 @@ function handlePlayerAction(ws, msg, rm) {
 
     case 'BUY_MARKET':
       result = ENGINE.buyFromMarket(room.state, player.id, action.marketIndex);
+      break;
+
+    case 'RESOLVE_PLACEMENT':
+      result = ENGINE.resolveBotPlacement(room.state, player.id, action.choice, action.swapTarget);
       break;
 
     case 'SCAVENGE':

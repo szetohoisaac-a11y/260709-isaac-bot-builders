@@ -50,6 +50,11 @@
     dom.btnBack = $('#btn-back');
     dom.targetingBoard = $('#targeting-board');
     dom.btnConfirm = $('#btn-confirm');
+    dom.placementOverlay = $('#placement-overlay');
+    dom.placementCardName = $('#placement-card-name');
+    dom.placementCardInfo = $('#placement-card-info');
+    dom.placementOptions = $('#placement-options');
+    dom.btnPlacementDiscard = $('#btn-placement-discard');
     dom.logPanel = $('#log-panel');
     dom.logEntries = $('#log-entries');
     dom.btnCloseLog = $('#btn-close-log');
@@ -164,6 +169,8 @@
     }
     // NOTE: callers are responsible for clearUiSelections() before/after as appropriate.
     // Some flows (e.g. selecting a hand card) need selections to survive the render pass.
+    // Check for pending placement after any state update
+    if (state.pendingPlacement) showPlacementOverlay(state);
   }
 
   function renderStatus(state) {
@@ -833,6 +840,65 @@
     // For bots, show "Play Here" on slots
     renderAll(gameState);
     renderActionButtons();
+  }
+
+  // ── Placement overlay (bot drawn/bought with no room) ──
+
+  function showPlacementOverlay(state) {
+    var p = getPlayer(state);
+    if (!p || !state.pendingPlacement) return;
+    var pp = state.pendingPlacement;
+    if (pp.playerId !== p.id) return;
+    var card = pp.card;
+
+    dom.placementCardName.textContent = card.name;
+    var atk = card.atk != null ? card.atk : 0;
+    var def = card.def != null ? card.def : 0;
+    dom.placementCardInfo.textContent = card.category + ' — ATK ' + atk + ' / HP ' + def + ' — ' + (card.effect || '');
+    dom.placementOptions.innerHTML = '';
+
+    // Swap targets: matching position bot + bench bots
+    var targets = [];
+    var matchPos = card.category.toLowerCase();
+    if (p.board[matchPos]) {
+      targets.push({ label: p.board[matchPos].name + ' (' + matchPos + ')', type: 'position', position: matchPos });
+    }
+    for (var i = 0; i < 6; i++) {
+      if (p.board.bench[i]) {
+        targets.push({ label: p.board.bench[i].name + ' (bench ' + (i+1) + ')', type: 'bench', index: i });
+      }
+    }
+
+    targets.forEach(function(t) {
+      var btn = document.createElement('button');
+      btn.className = 'placement-swap-btn';
+      btn.textContent = 'Swap with ' + t.label;
+      btn.addEventListener('click', function () {
+        resolvePlacement('swap', t);
+      });
+      dom.placementOptions.appendChild(btn);
+    });
+
+    dom.btnPlacementDiscard.onclick = function () { resolvePlacement('discard', null); };
+    dom.placementOverlay.style.display = 'flex';
+  }
+
+  function resolvePlacement(choice, swapTarget) {
+    dom.placementOverlay.style.display = 'none';
+    if (!gameState) return;
+    var p = getPlayer(gameState);
+    if (!p) return;
+    if (isNetworkMode()) {
+      networkAction({ type: 'RESOLVE_PLACEMENT', choice: choice, swapTarget: swapTarget });
+      return;
+    }
+    var result = Engine.resolveBotPlacement(gameState, p.id, choice, swapTarget);
+    if (result.error) { alert(result.error); return; }
+    gameState = result.newState;
+    renderAll(gameState);
+    renderActionButtons();
+    // If there's still a pending placement (unlikely), show overlay again
+    if (gameState.pendingPlacement) showPlacementOverlay(gameState);
   }
 
   function handleInstantPlay(card) {

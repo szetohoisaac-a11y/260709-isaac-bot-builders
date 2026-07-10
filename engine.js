@@ -107,6 +107,14 @@
     return card && ['Active', 'Secondary', 'Defensive', 'Support'].indexOf(card.category) !== -1;
   }
 
+  // Check where a bot can be placed
+  function hasRoomForBot(player, card) {
+    const pos = card.category.toLowerCase();
+    const canBench = player.board.bench.some(b => b === null);
+    const canPosition = !player.board[pos];
+    return { canBench, canPosition, position: pos };
+  }
+
   // Draw a card from player's deck
   ENGINE.drawCard = function (state, playerId) {
     const s = ENGINE.clone(state);
@@ -116,11 +124,18 @@
     if (!p.deck.length && !p.discard.length) return { newState: s, logEntry: null, error: 'No cards to draw' };
     if (!p.deck.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
     const card = p.deck.pop();
-    // Auto-bench: bot cards go straight to the bench (hand fallback if full)
+    // Auto-bench: bot cards go straight to bench if possible, else hand, else pending
     if (isBotCard(card)) {
-      const bIdx = p.board.bench.findIndex(b => b === null);
-      if (bIdx !== -1) { p.board.bench[bIdx] = card; }
-      else { p.hand.push(card); }
+      const room = hasRoomForBot(p, card);
+      if (room.canBench) {
+        const bIdx = p.board.bench.findIndex(b => b === null);
+        p.board.bench[bIdx] = card;
+      } else if (room.canPosition) {
+        p.hand.push(card); // player can play it to the open position
+      } else {
+        // Nowhere to go — player must choose
+        s.pendingPlacement = { playerId, card, source: 'draw' };
+      }
     } else {
       p.hand.push(card);
     }
@@ -140,11 +155,18 @@
     if (p.deck.length || p.discard.length) {
       if (!p.deck.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
       const card = p.deck.pop();
-      // Auto-bench: bot cards go straight to the bench (hand fallback if full)
+      // Auto-bench: bot cards go straight to bench if possible, else hand, else pending
       if (isBotCard(card)) {
-        const bIdx = p.board.bench.findIndex(b => b === null);
-        if (bIdx !== -1) { p.board.bench[bIdx] = card; }
-        else { p.hand.push(card); }
+        const room = hasRoomForBot(p, card);
+        if (room.canBench) {
+          const bIdx = p.board.bench.findIndex(b => b === null);
+          p.board.bench[bIdx] = card;
+        } else if (room.canPosition) {
+          p.hand.push(card); // player can play it to the open position
+        } else {
+          // Nowhere to go — player must choose
+          s.pendingPlacement = { playerId: p.id, card, source: 'draw' };
+        }
       } else {
         p.hand.push(card);
       }
@@ -222,6 +244,44 @@
     p.ap -= 1;
     s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} swapped ${benchBot.name} ↔ ${position}.` });
     return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
+  };
+
+  // Resolve a pending bot placement (player choice after draw/buy with no room)
+  ENGINE.resolveBotPlacement = function (state, playerId, choice, swapTarget) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    const pp = s.pendingPlacement;
+    if (!p || !pp || pp.playerId !== playerId) return { newState: s, error: 'No pending placement' };
+    const card = pp.card;
+    s.pendingPlacement = null;
+
+    if (choice === 'discard') {
+      p.discard.push(card);
+      s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} discarded ${card.name}.` });
+    } else if (choice === 'swap' && swapTarget) {
+      if (swapTarget.type === 'bench') {
+        const idx = swapTarget.index;
+        if (idx < 0 || idx > 5 || !p.board.bench[idx]) return { newState: s, error: 'Invalid bench target' };
+        const old = p.board.bench[idx];
+        p.board.bench[idx] = card;
+        p.discard.push(old);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} swapped ${card.name} with ${old.name} on bench — ${old.name} discarded.` });
+      } else if (swapTarget.type === 'position') {
+        const pos = swapTarget.position;
+        if (!['active','secondary','defensive','support'].includes(pos) || !p.board[pos]) return { newState: s, error: 'Invalid position target' };
+        const old = p.board[pos];
+        p.board[pos] = card;
+        p.discard.push(old);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} swapped ${card.name} with ${old.name} in ${pos} — ${old.name} discarded.` });
+      } else {
+        return { newState: s, error: 'Invalid swap target type' };
+      }
+    } else {
+      // No valid choice — discard as fallback
+      p.discard.push(card);
+      s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} discarded ${card.name} (no valid choice).` });
+    }
+    return { newState: s };
   };
 
   // Get the active player
@@ -647,7 +707,20 @@
     if ((card.cost || 0) > p.credits) return { newState: s, error: 'Not enough credits' };
     p.credits -= (card.cost || 0);
     p.ap -= 1;
-    p.hand.push(card);
+    // Auto-bench bot cards; non-bots go to hand; no room → pending
+    if (isBotCard(card)) {
+      const room = hasRoomForBot(p, card);
+      if (room.canBench) {
+        const bIdx = p.board.bench.findIndex(b => b === null);
+        p.board.bench[bIdx] = card;
+      } else if (room.canPosition) {
+        p.hand.push(card);
+      } else {
+        s.pendingPlacement = { playerId, card, source: 'buy' };
+      }
+    } else {
+      p.hand.push(card);
+    }
     s.marketRow.splice(marketIndex, 1);
     // Refill market from market deck only (don't steal player discards)
     if (s.marketDeck.length) { s.marketRow.push(s.marketDeck.pop()); }
