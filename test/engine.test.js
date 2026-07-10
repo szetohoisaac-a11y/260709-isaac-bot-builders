@@ -152,3 +152,21 @@ test('repair bot heals 3 HP', () => {
   assert.equal(result.newState.players[0].board.active.def, 4);
   assert.equal(result.newState.players[0].ap, 2);
 });
+
+test('scrap bomb deals 3 damage to target bot', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.players[0].ap = 3; s.players[0].credits = 5;
+  s.players[0].hand = [{ id: '026', type: 'card', name: 'Scrap Bomb', category: 'Instant', cost: 1, atk: 3, def: 0, effect: 'test', image: null }];
+  s.players[1].board.active = { id: '002', type: 'card', name: 'Brawler', category: 'Active', cost: 4, atk: 5, def: 6, effect: 'test', image: null };
+  const result = E.playInstant(s, 1, '026', [{ playerId: 2, position: 'active' }]);
+  assert.equal(result.newState.players[1].board.active.def, 3);
+  assert.equal(result.newState.players[0].credits, 4);
+});
+
+test('parts scavenge gives 3 credits', () => {
+  const s = E.createGame(['Alice'], 'shared');
+  s.players[0].ap = 3; s.players[0].credits = 2;
+  s.players[0].hand = [{ id: '032', type: 'card', name: 'Parts Scavenge', category: 'Instant', cost: 1, atk: 0, def: 0, effect: 'test', image: null }];
+  const result = E.playInstant(s, 1, '032', []);
+  assert.equal(result.newState.players[0].credits, 4);
+});

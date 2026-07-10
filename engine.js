@@ -428,6 +428,94 @@
     }
   };
 
+  ENGINE.playInstant = function (state, playerId, cardId, targets) {
+    let s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (!p) return { newState: s, error: 'Player not found' };
+    if (p.ap < 1) return { newState: s, error: 'Not enough AP' };
+    const idx = p.hand.findIndex(c => c.id === cardId);
+    if (idx === -1) return { newState: s, error: 'Card not in hand' };
+    const card = p.hand[idx];
+    // Check credit cost
+    if ((card.cost || 0) > p.credits) return { newState: s, error: 'Not enough credits' };
+    p.credits -= (card.cost || 0);
+    p.hand.splice(idx, 1);
+    p.discard.push(card);
+    p.ap -= 1;
+
+    switch (card.name) {
+      case 'Scrap Bomb':
+        // Deal 3 damage to any target bot
+        if (targets && targets.length) {
+          const t = targets[0];
+          const res = ENGINE.dealDamage(s, t.playerId, 'bot', t.position, 3);
+          s = res.newState;
+          s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Scrap Bomb — 3 damage to ${t.playerId}'s ${t.position}.` });
+        }
+        break;
+      case 'Overdrive':
+        if (targets && targets.length) {
+          const t = targets[0];
+          const buffResult = ENGINE.buff(s, t.playerId, t.position, 'atk', 3, s.turn + 2);
+          s = buffResult.newState;
+          s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Overdrive — +3 ATK to ${t.playerId}'s ${t.position}.` });
+        }
+        break;
+      case 'Salvage':
+        // Draw 2, gain 1 credit
+        p.credits += 1;
+        for (let i = 0; i < 2; i++) {
+          if (!p.deck.length && p.discard.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
+          if (p.deck.length) p.hand.push(p.deck.pop());
+        }
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Salvage — drew 2 cards, gained 1 credit.` });
+        break;
+      case 'Emergency Repair':
+        // Heal base 4
+        p.baseHP = Math.min(20, p.baseHP + 4);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Emergency Repair — base healed 4 HP.` });
+        break;
+      case 'Hack':
+        if (targets && targets.length) {
+          const t = targets[0];
+          const targetPlayer = s.players.find(pl => pl.id === t.playerId);
+          if (targetPlayer && targetPlayer.board[t.position]) {
+            const hackedBot = targetPlayer.board[t.position];
+            s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Hack — took control of ${targetPlayer.name}'s ${hackedBot.name}.` });
+            // Hack: can attack with hacked bot this turn
+            s._hacked = { playerId, targetPlayerId: t.playerId, position: t.position };
+          }
+        }
+        break;
+      case 'Power Surge':
+        p.ap += 2;
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Power Surge — gained +2 AP.` });
+        break;
+      case 'Parts Scavenge':
+        p.credits += 3;
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Parts Scavenge — gained 3 credits.` });
+        break;
+      case 'EMP Blast':
+        if (targets && targets.length) {
+          for (const t of targets.slice(0, 3)) {
+            const res = ENGINE.dealDamage(s, t.playerId, 'bot', t.position, 2);
+            s = res.newState;
+          }
+          s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played EMP Blast — 2 damage to ${Math.min(3, targets.length)} bots.` });
+        }
+        break;
+      case 'System Shock':
+        if (targets && targets.length) {
+          const t = targets[0];
+          const debuffResult = ENGINE.applyDebuff(s, t.playerId, t.position, 'systemShock', 1, s.turn + 99);
+          s = debuffResult.newState;
+          s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played System Shock — target will be destroyed on next action.` });
+        }
+        break;
+    }
+    return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
   if (typeof window !== 'undefined') window.GameEngine = ENGINE;
 })();
