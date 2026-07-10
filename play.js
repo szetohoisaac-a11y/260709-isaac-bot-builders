@@ -12,6 +12,13 @@
     selectedCard: null,
     selectedBench: null,
     targeting: null,
+    // Network mode
+    ws: null,
+    connected: false,
+    networkPlayerId: null,
+    networkRoomCode: null,
+    isHost: false,
+    reconnecting: false,
   };
 
   // ========== DOM REFS ==========
@@ -48,6 +55,23 @@
     dom.btnPlayAgain = $('#btn-play-again');
     dom.btnShared = $('#btn-shared');
     dom.statusBar = $('#status-bar');
+    // Network lobby
+    dom.btnHost = $('#btn-host');
+    dom.btnJoin = $('#btn-join');
+    dom.joinCode = $('#join-code');
+    dom.playerName = $('#player-name');
+    dom.btnStart = $('#btn-start');
+    dom.lobbyPlayers = $('#lobby-players');
+    dom.reconnectOverlay = $('#reconnect-overlay');
+    // Create reconnect overlay if it doesn't exist
+    if (!dom.reconnectOverlay) {
+      var overlay = document.createElement('div');
+      overlay.id = 'reconnect-overlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;z-index:300;';
+      overlay.innerHTML = '<div style="background:#fff;border-radius:18px;padding:32px;text-align:center;max-width:400px;"><h2>Disconnected</h2><p>Reconnecting...</p><button id="btn-reconnect-retry">Retry Now</button></div>';
+      document.body.appendChild(overlay);
+      dom.reconnectOverlay = overlay;
+    }
   }
 
   // ========== HELPERS ==========
@@ -98,6 +122,23 @@
     renderHand(state);
     renderMarket(state);
     renderEnemies(state);
+    // Turn enforcement for network mode
+    if (isNetworkMode()) {
+      dom.btnEndTurn.disabled = !isMyTurn();
+      var dim = !isMyTurn();
+      dimElement(dom.board, dim);
+      dimElement(dom.handCards, dim);
+      dimElement(dom.marketCards, dim);
+      dimElement(dom.benchSlots, dim);
+      dimElement(dom.enemyBoxes, dim);
+    } else {
+      dom.btnEndTurn.disabled = false;
+      dimElement(dom.board, false);
+      dimElement(dom.handCards, false);
+      dimElement(dom.marketCards, false);
+      dimElement(dom.benchSlots, false);
+      dimElement(dom.enemyBoxes, false);
+    }
     // NOTE: callers are responsible for clearUiSelections() before/after as appropriate.
     // Some flows (e.g. selecting a hand card) need selections to survive the render pass.
   }
@@ -116,7 +157,18 @@
       label.style.cssText = 'margin-left:auto;color:var(--accent);font-weight:700;';
       dom.statusBar.appendChild(label);
     }
-    label.textContent = p.name + '\'s Turn';
+    if (isNetworkMode()) {
+      if (isMyTurn()) {
+        label.textContent = 'Your Turn';
+        label.style.color = '#27ae60';
+      } else {
+        label.textContent = p.name + '\'s Turn';
+        label.style.color = 'var(--accent)';
+      }
+    } else {
+      label.textContent = p.name + '\'s Turn';
+      label.style.color = 'var(--accent)';
+    }
   }
 
   function renderBoard(state) {
@@ -207,9 +259,13 @@
     var drawBtn = document.createElement('button');
     drawBtn.textContent = 'Draw Card (1 AP)';
     drawBtn.style.cssText = 'font-size:11px;padding:4px 8px;margin-bottom:6px;';
-    drawBtn.disabled = p.ap < 1;
+    drawBtn.disabled = p.ap < 1 || !isMyTurn();
     drawBtn.addEventListener('click', function () {
       if (!gameState) return;
+      if (isNetworkMode()) {
+        networkAction({ type: 'DRAW_CARD' });
+        return;
+      }
       var result = Engine.drawCard(gameState, p.id);
       if (result.error) { alert(result.error); return; }
       gameState = result.newState;
@@ -327,6 +383,17 @@
       .replace(/"/g, '&quot;');
   }
 
+  function dimElement(el, dim) {
+    if (!el) return;
+    if (dim) {
+      el.style.opacity = '0.5';
+      el.style.pointerEvents = 'none';
+    } else {
+      el.style.opacity = '';
+      el.style.pointerEvents = '';
+    }
+  }
+
   // ========== TARGETING OVERLAY ==========
 
   function openTargetingOverlay(targetPlayerId) {
@@ -408,6 +475,20 @@
     if (!t.targetType) return;
     var p = getPlayer(gameState);
     if (!p) return;
+    if (isNetworkMode()) {
+      var action = {
+        type: 'ATTACK',
+        botPosition: t.botPosition,
+        targetPlayerId: t.targetPlayerId,
+        targetType: t.targetType,
+        targetPosition: t.targetPosition,
+      };
+      dom.targetingOverlay.style.display = 'none';
+      uiState.targeting = null;
+      clearUiSelections();
+      networkAction(action);
+      return;
+    }
     var result;
     // Check if breacher
     var bot = p.board[t.botPosition];
@@ -467,6 +548,8 @@
     var old = $('#action-bar');
     if (old) old.remove();
     if (!uiState.selectedSlot || !gameState) return;
+    // In network mode, only show action bar on your turn
+    if (isNetworkMode() && !isMyTurn()) return;
     var p = getPlayer(gameState);
     if (!p) return;
     var bot = p.board[uiState.selectedSlot];
@@ -581,6 +664,15 @@
     if (!t.targetPosition) return;
     var p = getPlayer(gameState);
     if (!p) return;
+    if (isNetworkMode()) {
+      dom.targetingOverlay.style.display = 'none';
+      var abilityName = t.abilityName;
+      var targetPos = t.targetPosition;
+      uiState.targeting = null;
+      clearUiSelections();
+      networkAction({ type: 'USE_ABILITY', abilityName: abilityName, targetPosition: targetPos });
+      return;
+    }
     var result = Engine.useSupportAbility(gameState, p.id, t.abilityName, t.targetPosition);
     if (result.error) {
       alert(result.error);
@@ -610,6 +702,14 @@
       var bot = p.board.bench[index];
       if (!bot) {
         alert('That bench slot is empty. Select a slot with a bot to swap.');
+        return;
+      }
+      if (isNetworkMode()) {
+        var slotPos = uiState.selectedSlot;
+        clearUiSelections();
+        renderAll(gameState);
+        renderActionButtons();
+        networkAction({ type: 'SWAP_BENCH', benchIndex: index, position: slotPos });
         return;
       }
       var result = Engine.swapBench(gameState, p.id, index, uiState.selectedSlot);
@@ -662,6 +762,11 @@
       return;
     }
     // Self-targeting instants: play immediately
+    if (isNetworkMode()) {
+      clearUiSelections();
+      networkAction({ type: 'PLAY_INSTANT', cardId: card.id, targets: [] });
+      return;
+    }
     var result = Engine.playInstant(gameState, p.id, card.id, []);
     if (result.error) {
       alert(result.error);
@@ -676,6 +781,11 @@
   function handleTrapPlay(card) {
     var p = getPlayer(gameState);
     if (!p) return;
+    if (isNetworkMode()) {
+      clearUiSelections();
+      networkAction({ type: 'PLAY_TRAP', cardId: card.id });
+      return;
+    }
     var result = Engine.playTrap(gameState, p.id, card.id);
     if (result.error) {
       alert(result.error);
@@ -759,6 +869,13 @@
     if (!gameState) return;
     var p = getPlayer(gameState);
     if (!p) return;
+    if (isNetworkMode()) {
+      dom.targetingOverlay.style.display = 'none';
+      uiState.targeting = null;
+      clearUiSelections();
+      networkAction({ type: 'PLAY_INSTANT', cardId: card.id, targets: targets });
+      return;
+    }
     var result = Engine.playInstant(gameState, p.id, card.id, targets);
     if (result.error) {
       alert(result.error);
@@ -776,6 +893,11 @@
     if (!gameState) return;
     var p = getPlayer(gameState);
     if (!p) return;
+    if (isNetworkMode()) {
+      clearUiSelections();
+      networkAction({ type: 'PLAY_BOT', cardId: cardId, position: position });
+      return;
+    }
     var result = Engine.playBotToPosition(gameState, p.id, cardId, position);
     if (result.error) {
       alert(result.error);
@@ -791,6 +913,11 @@
     if (!gameState) return;
     var p = getPlayer(gameState);
     if (!p) return;
+    if (isNetworkMode()) {
+      clearUiSelections();
+      networkAction({ type: 'BUY_MARKET', marketIndex: index });
+      return;
+    }
     var result = Engine.buyFromMarket(gameState, p.id, index);
     if (result.error) {
       alert(result.error);
@@ -820,6 +947,11 @@
     if (!gameState) return;
     var p = getPlayer(gameState);
     if (!p) return;
+    if (isNetworkMode()) {
+      clearUiSelections();
+      sendMessage({ type: 'END_TURN', playerId: uiState.networkPlayerId });
+      return;
+    }
     var result = Engine.endTurn(gameState, p.id);
     if (result.error) {
       alert(result.error);
@@ -913,6 +1045,16 @@
   }
 
   function doScavenge(winnerId, loserId, position) {
+    if (isNetworkMode()) {
+      networkAction({ type: 'SCAVENGE', loserId: loserId, position: position });
+      var opts = document.getElementById('scavenge-options');
+      if (opts) opts.remove();
+      var skipBtn = document.getElementById('scavenge-skip');
+      if (skipBtn) skipBtn.remove();
+      dom.btnPlayAgain.style.display = 'inline-block';
+      dom.victoryText.textContent = 'Scavenging...';
+      return;
+    }
     var result = Engine.scavenge(gameState, winnerId, loserId, position);
     gameState = result.newState;
     var opts = document.getElementById('scavenge-options');
@@ -924,9 +1066,302 @@
     dom.btnPlayAgain.style.display = 'inline-block';
   }
 
+  // ========== NETWORK MODE ==========
+
+  function isNetworkMode() {
+    return uiState.mode === 'network';
+  }
+
+  function isMyTurn() {
+    if (!isNetworkMode()) return true;
+    if (!gameState) return false;
+    return gameState.activePlayer === uiState.networkPlayerId;
+  }
+
+  function getWsUrl() {
+    var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return protocol + '//' + location.host;
+  }
+
+  function connectWebSocket() {
+    if (uiState.ws && uiState.ws.readyState === WebSocket.OPEN) return;
+    var url = getWsUrl();
+    var ws = new WebSocket(url);
+    uiState.ws = ws;
+
+    ws.onopen = function () {
+      uiState.connected = true;
+      uiState.reconnecting = false;
+      hideReconnectNotice();
+      console.log('[ws] connected to ' + url);
+    };
+
+    ws.onmessage = function (event) {
+      var msg;
+      try { msg = JSON.parse(event.data); } catch (e) { return; }
+      handleServerMessage(msg);
+    };
+
+    ws.onclose = function () {
+      uiState.connected = false;
+      uiState.ws = null;
+      if (!uiState.reconnecting) {
+        showReconnectNotice();
+      }
+    };
+
+    ws.onerror = function () {
+      // onclose will fire after this
+    };
+  }
+
+  function sendMessage(msg) {
+    if (uiState.ws && uiState.ws.readyState === WebSocket.OPEN) {
+      uiState.ws.send(JSON.stringify(msg));
+      return true;
+    }
+    return false;
+  }
+
+  function networkAction(actionData) {
+    return sendMessage({
+      type: 'PLAYER_ACTION',
+      playerId: uiState.networkPlayerId,
+      action: actionData,
+    });
+  }
+
+  function handleServerMessage(msg) {
+    switch (msg.type) {
+      case 'ROOM_CREATED':
+        uiState.networkRoomCode = msg.code;
+        uiState.networkPlayerId = msg.playerId;
+        uiState.isHost = true;
+        dom.joinCode.value = msg.code;
+        dom.joinCode.disabled = true;
+        dom.playerName.disabled = true;
+        dom.btnHost.style.display = 'none';
+        dom.btnJoin.style.display = 'none';
+        dom.btnShared.style.display = 'none';
+        updateLobbyPlayers(msg.players);
+        dom.btnStart.style.display = 'block';
+        console.log('[ws] room created: ' + msg.code);
+        break;
+
+      case 'JOIN_SUCCESS':
+        uiState.networkRoomCode = msg.code;
+        uiState.networkPlayerId = msg.playerId;
+        uiState.isHost = false;
+        dom.joinCode.value = msg.code;
+        dom.joinCode.disabled = true;
+        dom.playerName.disabled = true;
+        dom.btnHost.style.display = 'none';
+        dom.btnJoin.style.display = 'none';
+        dom.btnShared.style.display = 'none';
+        updateLobbyPlayers(msg.players);
+        console.log('[ws] joined room: ' + msg.code + ' as player ' + msg.playerId);
+        break;
+
+      case 'PLAYER_JOINED':
+        updateLobbyPlayers(msg.players);
+        break;
+
+      case 'STATE_UPDATE':
+        gameState = msg.state;
+        uiState.mode = 'network';
+        clearUiSelections();
+        if (!dom.gameScreen.style.display || dom.gameScreen.style.display === 'none') {
+          dom.lobby.style.display = 'none';
+          dom.gameScreen.style.display = 'block';
+          dom.victoryScreen.style.display = 'none';
+          dom.passOverlay.style.display = 'none';
+          dom.targetingOverlay.style.display = 'none';
+          dom.logPanel.style.display = 'none';
+        }
+        renderAll(gameState);
+        renderActionButtons();
+        break;
+
+      case 'GAME_OVER':
+        gameState = msg.state;
+        renderAll(gameState);
+        renderActionButtons();
+        if (msg.winner.id === uiState.networkPlayerId) {
+          var loser = gameState.players.find(function (p) { return p.id !== msg.winner.id; });
+          displayVictoryWithScavenge(msg.winner, loser);
+        } else {
+          dom.victoryText.textContent = msg.winner.name + ' Wins!';
+          dom.btnPlayAgain.style.display = 'inline-block';
+          dom.victoryScreen.style.display = 'flex';
+        }
+        break;
+
+      case 'PLAYER_DISCONNECTED':
+      case 'PLAYER_LEFT':
+        updateLobbyPlayers(msg.players);
+        if (gameState && uiState.mode === 'network') {
+          // Show a brief status notification
+          var statusLabel = dom.statusBar.querySelector('.turn-label');
+          if (statusLabel && msg.name) {
+            statusLabel.textContent = msg.name + ' disconnected';
+            statusLabel.style.color = '#e74c3c';
+            setTimeout(function () {
+              if (statusLabel) {
+                statusLabel.style.color = 'var(--accent)';
+                if (gameState) {
+                  var p = getPlayer(gameState);
+                  statusLabel.textContent = p ? p.name + '\'s Turn' : '';
+                }
+              }
+            }, 3000);
+          }
+        }
+        break;
+
+      case 'ROOM_INFO':
+        uiState.networkRoomCode = msg.code;
+        updateLobbyPlayers(msg.players);
+        if (msg.started && msg.playerId) {
+          // Reconnecting to an in-progress game
+          uiState.networkPlayerId = msg.playerId;
+        }
+        break;
+
+      case 'ERROR':
+        alert('Server: ' + (msg.error || 'Unknown error'));
+        break;
+
+      default:
+        console.log('[ws] unhandled message type:', msg.type);
+    }
+  }
+
+  function updateLobbyPlayers(players) {
+    if (!dom.lobbyPlayers) return;
+    dom.lobbyPlayers.innerHTML = '';
+    var heading = document.createElement('h3');
+    heading.textContent = 'Players in Room';
+    heading.style.cssText = 'margin:12px 0 6px;';
+    dom.lobbyPlayers.appendChild(heading);
+    players.forEach(function (p) {
+      var div = document.createElement('div');
+      div.style.cssText = 'padding:4px 0;font-size:14px;';
+      div.textContent = (p.id === 1 ? '[Host] ' : '') + p.name +
+        (p.connected ? '' : ' (disconnected)');
+      dom.lobbyPlayers.appendChild(div);
+    });
+    // Show start button for host when enough players
+    if (uiState.isHost && players.length >= 2) {
+      dom.btnStart.style.display = 'block';
+    } else if (uiState.isHost) {
+      dom.btnStart.style.display = 'none';
+    }
+  }
+
+  function showReconnectNotice() {
+    if (dom.reconnectOverlay) {
+      dom.reconnectOverlay.style.display = 'flex';
+      var retryBtn = document.getElementById('btn-reconnect-retry');
+      if (retryBtn) {
+        retryBtn.onclick = function () {
+          uiState.reconnecting = true;
+          connectWebSocket();
+          // After connecting, rejoin the room
+          setTimeout(function () {
+            if (uiState.connected && uiState.networkRoomCode && uiState.networkPlayerId) {
+              sendMessage({
+                type: 'GET_ROOM',
+                code: uiState.networkRoomCode,
+              });
+            }
+          }, 500);
+        };
+      }
+    }
+  }
+
+  function hideReconnectNotice() {
+    if (dom.reconnectOverlay) {
+      dom.reconnectOverlay.style.display = 'none';
+    }
+  }
+
+  // ========== NETWORK LOBBY FLOWS ==========
+
+  function startHostGame() {
+    var name = (dom.playerName.value || '').trim();
+    if (!name) {
+      name = prompt('Enter your name:', 'Host');
+      if (!name) return;
+      dom.playerName.value = name;
+    }
+    uiState.mode = 'network';
+    uiState.networkPlayerId = null;
+    uiState.networkRoomCode = null;
+    uiState.isHost = true;
+    connectWebSocket();
+    // Wait for connection, then send HOST_GAME
+    waitForConnection(function () {
+      sendMessage({ type: 'HOST_GAME', name: name });
+    });
+  }
+
+  function startJoinGame() {
+    var code = (dom.joinCode.value || '').trim().toUpperCase();
+    if (!code || !/^[A-Z]{4}$/.test(code)) {
+      code = prompt('Enter room code (4 letters):', '');
+      if (!code) return;
+      code = code.trim().toUpperCase();
+      if (!/^[A-Z]{4}$/.test(code)) {
+        alert('Room code must be 4 letters.');
+        return;
+      }
+      dom.joinCode.value = code;
+    }
+    var name = (dom.playerName.value || '').trim();
+    if (!name) {
+      name = prompt('Enter your name:', 'Player');
+      if (!name) return;
+      dom.playerName.value = name;
+    }
+    uiState.mode = 'network';
+    uiState.networkPlayerId = null;
+    uiState.networkRoomCode = code;
+    uiState.isHost = false;
+    connectWebSocket();
+    waitForConnection(function () {
+      sendMessage({ type: 'JOIN_GAME', code: code, name: name });
+    });
+  }
+
+  function startNetworkGame() {
+    if (!uiState.isHost || !uiState.connected) return;
+    sendMessage({ type: 'START_GAME' });
+  }
+
+  function waitForConnection(cb) {
+    if (uiState.ws && uiState.ws.readyState === WebSocket.OPEN) {
+      cb();
+      return;
+    }
+    var attempts = 0;
+    var maxAttempts = 50; // 5 seconds at 100ms
+    var interval = setInterval(function () {
+      attempts++;
+      if (uiState.ws && uiState.ws.readyState === WebSocket.OPEN) {
+        clearInterval(interval);
+        cb();
+      } else if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        alert('Could not connect to server. Is it running?');
+      }
+    }, 100);
+  }
+
   // ========== GAME INIT ==========
 
   function startSharedGame() {
+    uiState.mode = 'shared';
     var name1 = prompt('Enter Player 1 name:', 'Player 1');
     if (!name1) return;
     var name2 = prompt('Enter Player 2 name:', 'Player 2');
@@ -949,6 +1384,9 @@
   function wireEvents() {
     // Lobby
     dom.btnShared.addEventListener('click', startSharedGame);
+    dom.btnHost.addEventListener('click', startHostGame);
+    dom.btnJoin.addEventListener('click', startJoinGame);
+    dom.btnStart.addEventListener('click', startNetworkGame);
 
     // Board slots
     var positions = ['active', 'secondary', 'defensive', 'support'];
@@ -1024,6 +1462,24 @@
       dom.btnPlayAgain.style.display = 'inline-block';
       uiState.winnerId = null;
       uiState.loserId = null;
+      // Reset network state if returning from network game
+      if (uiState.mode === 'network') {
+        uiState.mode = 'shared';
+        uiState.networkPlayerId = null;
+        uiState.networkRoomCode = null;
+        uiState.isHost = false;
+        // Reset lobby UI
+        dom.btnHost.style.display = '';
+        dom.btnJoin.style.display = '';
+        dom.btnShared.style.display = '';
+        dom.btnStart.style.display = 'none';
+        dom.joinCode.value = '';
+        dom.joinCode.disabled = false;
+        dom.playerName.value = '';
+        dom.playerName.disabled = false;
+        dom.lobbyPlayers.innerHTML = '';
+        hideReconnectNotice();
+      }
     });
   }
 

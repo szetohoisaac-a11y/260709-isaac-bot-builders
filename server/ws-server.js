@@ -417,6 +417,10 @@ function handlePlayerAction(ws, msg, rm) {
       result = ENGINE.buyFromMarket(room.state, player.id, action.marketIndex);
       break;
 
+    case 'SCAVENGE':
+      result = ENGINE.scavenge(room.state, player.id, action.loserId, action.position);
+      break;
+
     default:
       return send(ws, { type: 'ERROR', error: 'Unknown action type: ' + action.type });
   }
