@@ -143,3 +143,12 @@ test('jammer discards a card from enemy hand', () => {
   assert.equal(result.newState.players[1].hand.length, 0);
   assert.equal(result.newState.players[1].discard.length, 1);
 });
+
+test('repair bot heals 3 HP', () => {
+  const s = E.createGame(['Alice'], 'shared');
+  s.players[0].ap = 3;
+  s.players[0].board.active = { id: '001', type: 'card', name: 'Striker', category: 'Active', cost: 3, atk: 4, def: 1, effect: 'test', image: null };
+  const result = E.useSupportAbility(s, 1, 'Repair Bot', 'active');
+  assert.equal(result.newState.players[0].board.active.def, 4);
+  assert.equal(result.newState.players[0].ap, 2);
+});

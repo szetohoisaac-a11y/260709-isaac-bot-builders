@@ -369,6 +369,65 @@
     return { newState: s };
   };
 
+  ENGINE.heal = function (state, playerId, targetPosition, amount) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (!p) return { newState: s, error: 'Player not found' };
+    const bot = p.board[targetPosition];
+    if (!bot) return { newState: s, error: 'No bot in position' };
+    bot.def = (bot.def || 0) + amount;
+    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} healed ${bot.name} for ${amount} HP.` });
+    return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
+  };
+
+  ENGINE.healBase = function (state, playerId, amount) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    p.baseHP = Math.min(20, p.baseHP + amount);
+    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} repaired base for ${amount} HP.` });
+    return { newState: s };
+  };
+
+  ENGINE.buff = function (state, playerId, targetPosition, type, amount, expiresTurn) {
+    const s = ENGINE.clone(state);
+    s.players.find(pl => pl.id === playerId).debuffs.push({
+      targetPosition, type, amount, expiresTurn
+    });
+    return { newState: s };
+  };
+
+  ENGINE.useSupportAbility = function (state, playerId, abilityName, targetPosition) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (!p || p.ap < 1) return { newState: s, error: 'Not enough AP' };
+    const turn = s.turn;
+    p.ap -= 1;
+    switch (abilityName) {
+      case 'Repair Bot':
+        return ENGINE.heal({...s, players: s.players}, playerId, targetPosition, 3);
+      case 'Medic':
+        return ENGINE.heal({...s, players: s.players}, playerId, targetPosition, 5);
+      case 'Booster':
+        ENGINE.buff({...s, players: s.players}, playerId, targetPosition, 'atk', 2, turn + 2);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name}'s Booster gave +2 ATK to ${targetPosition}.` });
+        return { newState: s };
+      case 'Shield Gen':
+        ENGINE.buff({...s, players: s.players}, playerId, targetPosition, 'reduceDmg', 3, turn + 2);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name}'s Shield Gen: -3 damage against ${targetPosition}.` });
+        return { newState: s };
+      case 'Overcharger':
+        ENGINE.buff({...s, players: s.players}, playerId, targetPosition, 'doubleAttack', 1, turn + 2);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name}'s Overcharger: ${targetPosition} may attack twice this turn.` });
+        return { newState: s };
+      case 'Bounty Drone':
+        ENGINE.buff({...s, players: s.players}, playerId, targetPosition, 'doubleCredits', 2, turn + 2);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name}'s Bounty Drone: double credits for ${targetPosition}.` });
+        return { newState: s };
+      default:
+        return { newState: s, error: 'Unknown ability' };
+    }
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
   if (typeof window !== 'undefined') window.GameEngine = ENGINE;
 })();
