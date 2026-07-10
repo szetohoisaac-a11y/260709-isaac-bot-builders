@@ -104,3 +104,24 @@ test('breacher vs base bypasses defensive bot', () => {
   assert.equal(result.newState.players[1].baseHP, 17);
   assert.equal(result.newState.players[1].board.defensive.def, 10);
 });
+
+test('defensive bot intercepts base attack', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.players[0].ap = 3;
+  s.players[0].board.active = { id: '001', type: 'card', name: 'Striker', category: 'Active', cost: 3, atk: 4, def: 5, effect: 'test', image: null };
+  s.players[1].board.defensive = { id: '016', type: 'card', name: 'Fortress', category: 'Defensive', cost: 4, atk: 0, def: 10, effect: 'test', image: null };
+  const result = E.attack(s, 1, 'active', 2, 'base');
+  // Base should be untouched, Fortress takes 4 damage
+  assert.equal(result.newState.players[1].baseHP, 20);
+  assert.equal(result.newState.players[1].board.defensive.def, 6);
+});
+
+test('spike wall reflects 2 damage', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.players[0].ap = 3;
+  s.players[0].board.active = { id: '001', type: 'card', name: 'Striker', category: 'Active', cost: 3, atk: 4, def: 5, effect: 'test', image: null };
+  s.players[1].board.defensive = { id: '017', type: 'card', name: 'Spike Wall', category: 'Defensive', cost: 3, atk: 0, def: 6, effect: 'test', image: null };
+  const result = E.attack(s, 1, 'active', 2, 'base');
+  // Striker should take 2 reflect damage
+  assert.equal(result.newState.players[0].board.active.def, 3);
+});

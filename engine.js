@@ -238,9 +238,33 @@
       }
     }
 
-    const result = ENGINE.dealDamage(s, targetPlayerId, targetType, targetPosition, atk);
-    result.newState.turnLog.push({ time: Date.now(), playerId, msg: `${attacker.name}'s ${bot.name} attacked ${defender ? defender.name : '?'}'s ${targetType} for ${atk} damage.` });
-    return { newState: result.newState, logEntry: result.newState.turnLog[result.newState.turnLog.length - 1], destroyed: result.destroyed };
+    let dmg = atk;
+    if (targetType === 'base') {
+      const intercept = ENGINE.resolveIntercept(s, targetPlayerId, dmg);
+      const def = defender && defender.board && defender.board.defensive;
+      if (intercept.defenderDamage > 0) {
+        const defResult = ENGINE.dealDamage(s, targetPlayerId, 'bot', 'defensive', intercept.defenderDamage);
+        s.players.find(pl => pl.id === targetPlayerId).board = defResult.newState.players.find(pl => pl.id === targetPlayerId).board;
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${defender.name}'s ${def.name} intercepted ${intercept.defenderDamage} damage!` });
+      }
+      if (intercept.actualDamage > 0) {
+        s.players.find(pl => pl.id === targetPlayerId).baseHP = Math.max(0, s.players.find(pl => pl.id === targetPlayerId).baseHP - intercept.actualDamage);
+      }
+      if (intercept.reflectedDamage > 0 && attacker.board[botPosition]) {
+        attacker.board[botPosition].def = (attacker.board[botPosition].def || 0) - intercept.reflectedDamage;
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${def.name} reflected ${intercept.reflectedDamage} damage back to ${bot.name}!` });
+        if (attacker.board[botPosition] && attacker.board[botPosition].def <= 0) {
+          attacker.discard.push(attacker.board[botPosition]);
+          attacker.board[botPosition] = null;
+        }
+      }
+      s.turnLog.push({ time: Date.now(), playerId, msg: `${attacker.name}'s ${bot.name} attacked ${defender ? defender.name : '?'}'s base.` });
+      return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
+    } else {
+      const result = ENGINE.dealDamage(s, targetPlayerId, targetType, targetPosition, dmg);
+      result.newState.turnLog.push({ time: Date.now(), playerId, msg: `${attacker.name}'s ${bot.name} attacked ${defender ? defender.name : '?'}'s ${targetType} for ${dmg} damage.` });
+      return { newState: result.newState, logEntry: result.newState.turnLog[result.newState.turnLog.length - 1], destroyed: result.destroyed };
+    }
   };
 
   // Breacher attack: bypasses Defensive bots when targeting base
@@ -259,6 +283,33 @@
     }
     // vs bot: normal attack
     return ENGINE.attack(state, playerId, 'active', targetPlayerId, 'bot', 'active');
+  };
+
+  ENGINE.resolveIntercept = function (state, targetPlayerId, damage) {
+    const p = state.players.find(pl => pl.id === targetPlayerId);
+    if (!p) return { actualDamage: damage, reflectedDamage: 0, defenderDamage: 0 };
+    const def = p.board.defensive;
+    if (!def) return { actualDamage: damage, reflectedDamage: 0, defenderDamage: 0 };
+
+    const name = def.name;
+    if (name === 'Fortress') {
+      return { actualDamage: 0, reflectedDamage: 0, defenderDamage: damage };
+    }
+    if (name === 'Bulwark') {
+      return { actualDamage: 0, reflectedDamage: 1, defenderDamage: damage };
+    }
+    if (name === 'Spike Wall') {
+      return { actualDamage: 0, reflectedDamage: 2, defenderDamage: damage };
+    }
+    if (name === 'Shield Drone') {
+      const reduced = Math.max(0, damage - 2);
+      return { actualDamage: 0, reflectedDamage: 0, defenderDamage: reduced };
+    }
+    if (name === 'Nullifier') {
+      const half = Math.floor(damage / 2);
+      return { actualDamage: half, reflectedDamage: 0, defenderDamage: damage - half, silenceAttacker: true };
+    }
+    return { actualDamage: damage, reflectedDamage: 0, defenderDamage: 0 };
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
