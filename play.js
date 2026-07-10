@@ -19,6 +19,7 @@
     networkRoomCode: null,
     isHost: false,
     reconnecting: false,
+    wasConnected: false,
   };
 
   // ========== DOM REFS ==========
@@ -1235,11 +1236,18 @@
   function connectWebSocket() {
     if (uiState.ws && uiState.ws.readyState === WebSocket.OPEN) return;
     var url = getWsUrl();
-    var ws = new WebSocket(url);
+    var ws;
+    try {
+      ws = new WebSocket(url);
+    } catch (e) {
+      alert('Cannot connect to game server. Make sure the server is running with: npm start');
+      return;
+    }
     uiState.ws = ws;
 
     ws.onopen = function () {
       uiState.connected = true;
+      uiState.wasConnected = true;
       uiState.reconnecting = false;
       hideReconnectNotice();
       console.log('[ws] connected to ' + url);
@@ -1248,19 +1256,24 @@
     ws.onmessage = function (event) {
       var msg;
       try { msg = JSON.parse(event.data); } catch (e) { return; }
-      handleServerMessage(msg);
+      try {
+        handleServerMessage(msg);
+      } catch (e) {
+        console.error('[ws] error handling message:', e);
+      }
     };
 
-    ws.onclose = function () {
+    ws.onclose = function (evt) {
       uiState.connected = false;
       uiState.ws = null;
+      console.log('[ws] disconnected, code=' + evt.code + ' reason=' + evt.reason);
       if (!uiState.reconnecting) {
         showReconnectNotice();
       }
     };
 
-    ws.onerror = function () {
-      // onclose will fire after this
+    ws.onerror = function (err) {
+      console.error('[ws] connection error — server may not be running');
     };
   }
 
@@ -1420,6 +1433,8 @@
   }
 
   function showReconnectNotice() {
+    // Only show if we were previously connected (avoid showing on initial failed connection)
+    if (!uiState.wasConnected) return;
     if (dom.reconnectOverlay) {
       dom.reconnectOverlay.style.display = 'flex';
       var retryBtn = document.getElementById('btn-reconnect-retry');
