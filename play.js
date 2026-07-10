@@ -192,6 +192,7 @@
           ? '<img class="slot-img" src="' + escHtml(bot.image) + '" alt="' + escHtml(bot.name) + '" onerror="this.style.display=\'none\'">'
           : '';
         cardDiv.innerHTML =
+          '<span class="card-type-badge">' + escHtml(bot.category) + '</span>' +
           imgHtml +
           '<div class="bot-name">' + escHtml(bot.name) + '</div>' +
           '<span class="atk">ATK ' + atk + '</span> ' +
@@ -250,6 +251,7 @@
           ? '<img src="' + escHtml(bot.image) + '" alt="' + escHtml(bot.name) + '" onerror="this.style.display=\'none\'">'
           : '';
         chip.innerHTML =
+          '<span class="card-type-badge">' + escHtml(bot.category) + '</span>' +
           imgHtml +
           '<div class="bench-info">' +
           '<div class="bench-name">' + escHtml(bot.name) + '</div>' +
@@ -306,6 +308,7 @@
         ? '<img class="card-img" src="' + escHtml(card.image) + '" alt="' + escHtml(card.name) + '" onerror="this.style.display=\'none\'">'
         : '';
       cardEl.innerHTML =
+        '<span class="card-type-badge">' + escHtml(card.category) + '</span>' +
         imgHtml +
         '<div class="card-info"><strong>' + escHtml(card.name) + '</strong>' +
         ' <span class="cost">(' + cost + 'c)</span>' +
@@ -332,6 +335,7 @@
         ? '<img class="card-img" src="' + escHtml(card.image) + '" alt="' + escHtml(card.name) + '" onerror="this.style.display=\'none\'">'
         : '';
       cardEl.innerHTML =
+        '<span class="card-type-badge">' + escHtml(card.category) + '</span>' +
         imgHtml +
         '<div class="card-info"><strong>' + escHtml(card.name) + '</strong>' +
         ' <span class="cost">' + cost + ' credits</span>' +
@@ -1230,16 +1234,28 @@
         gameState = msg.state;
         uiState.mode = 'network';
         clearUiSelections();
-        if (!dom.gameScreen.style.display || dom.gameScreen.style.display === 'none') {
+        if (gameState.phase === 'auction') {
+          // Show auction screen
+          hideAuctionScreen();
+          showAuctionScreen();
+          dom.lobby.style.display = 'none';
+          dom.gameScreen.style.display = 'none';
+          dom.victoryScreen.style.display = 'none';
+          dom.passOverlay.style.display = 'none';
+          dom.targetingOverlay.style.display = 'none';
+          dom.logPanel.style.display = 'none';
+          renderAuction(gameState);
+        } else {
+          hideAuctionScreen();
           dom.lobby.style.display = 'none';
           dom.gameScreen.style.display = 'block';
           dom.victoryScreen.style.display = 'none';
           dom.passOverlay.style.display = 'none';
           dom.targetingOverlay.style.display = 'none';
           dom.logPanel.style.display = 'none';
+          renderAll(gameState);
+          renderActionButtons();
         }
-        renderAll(gameState);
-        renderActionButtons();
         break;
 
       case 'GAME_OVER':
@@ -1448,22 +1464,27 @@
     var amount = parseInt(inp.value) || 0;
     if (!gameState || gameState.phase !== 'auction') return;
 
-    var currentBidder;
-    if (uiState.mode === 'shared') {
-      // Shared: players take turns bidding. Determine who hasn't bid yet.
-      var alive = gameState.players.filter(function (p) { return p.baseHP > 0; });
-      var nextToBid = null;
-      for (var i = 0; i < alive.length; i++) {
-        if (gameState.bids[alive[i].id] === undefined) {
-          nextToBid = alive[i].id;
-          break;
-        }
-      }
-      if (!nextToBid) { nextToBid = alive[0].id; } // fallback
-      currentBidder = nextToBid;
-    } else {
-      currentBidder = uiState.playerId;
+    // Network mode: send bid via WebSocket, server updates state
+    if (isNetworkMode()) {
+      networkAction({ type: 'SUBMIT_BID', amount: amount });
+      inp.value = 0;
+      var status = document.getElementById('bid-status');
+      if (status) status.textContent = 'Bid submitted. Waiting for others...';
+      return;
     }
+
+    // Shared mode
+    var currentBidder;
+    var alive = gameState.players.filter(function (p) { return p.baseHP > 0; });
+    var nextToBid = null;
+    for (var i = 0; i < alive.length; i++) {
+      if (gameState.bids[alive[i].id] === undefined) {
+        nextToBid = alive[i].id;
+        break;
+      }
+    }
+    if (!nextToBid) { nextToBid = alive[0].id; }
+    currentBidder = nextToBid;
 
     var result = Engine.submitBid(gameState, currentBidder, amount);
     gameState = result.newState;

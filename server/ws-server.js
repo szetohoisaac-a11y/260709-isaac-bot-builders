@@ -326,13 +326,9 @@ function handleStartGame(ws, msg, rm) {
   const playerNames = room.players.map(p => p.name);
   room.state = ENGINE.createGame(playerNames, 'network');
 
-  // Start first player's turn
-  const turnResult = ENGINE.startTurn(room.state);
-  room.state = turnResult.newState;
+  console.log(`[ws] game started in room ${room.code} with ${playerNames.length} players — auction begins`);
 
-  console.log(`[ws] game started in room ${room.code} with ${playerNames.length} players`);
-
-  // Broadcast to all players
+  // Broadcast auction state to all players
   broadcastState(room);
 }
 
@@ -353,9 +349,12 @@ function handlePlayerAction(ws, msg, rm) {
     return send(ws, { type: 'ERROR', error: 'Game is over' });
   }
 
-  // Turn enforcement — only the active player can act
-  if (player.id !== room.state.activePlayer) {
-    return send(ws, { type: 'ERROR', error: 'It is not your turn' });
+  // During auction, all players can bid — skip turn enforcement
+  if (room.state.phase !== 'auction') {
+    // Turn enforcement — only the active player can act during game
+    if (player.id !== room.state.activePlayer) {
+      return send(ws, { type: 'ERROR', error: 'It is not your turn' });
+    }
   }
 
   // Handle the specific action
@@ -419,6 +418,10 @@ function handlePlayerAction(ws, msg, rm) {
 
     case 'SCAVENGE':
       result = ENGINE.scavenge(room.state, player.id, action.loserId, action.position);
+      break;
+
+    case 'SUBMIT_BID':
+      result = ENGINE.submitBid(room.state, player.id, action.amount);
       break;
 
     default:
