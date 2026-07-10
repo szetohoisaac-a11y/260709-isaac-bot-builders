@@ -223,6 +223,13 @@
     }
     p.ap -= 1;
     s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played ${card.name} → ${position}.` });
+    // Check opponent traps for Tripwire
+    s.players.forEach(function (opp) {
+      if (opp.id !== playerId && opp.baseHP > 0) {
+        const trapResult = ENGINE.checkTraps(s, opp.id, 'play_bot', { botName: card.name, playerId, position });
+        if (trapResult.triggered) s = trapResult.newState;
+      }
+    });
     return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
   };
 
@@ -302,6 +309,15 @@
       if (!bot) return { newState: s, destroyed: null };
       bot.def = (bot.def || 0) - amount;
       if (bot.def <= 0) {
+        // Check traps before destroying: Retreat Order first, then Failsafe
+        const retreatResult = ENGINE.checkTraps(s, targetPlayerId, 'bot_would_be_destroyed', { position: targetPosition });
+        if (retreatResult.triggered) {
+          return { newState: retreatResult.newState, destroyed: null };
+        }
+        const failsafeResult = ENGINE.checkTraps(s, targetPlayerId, 'bot_destroyed', { position: targetPosition });
+        if (failsafeResult.triggered) {
+          return { newState: failsafeResult.newState, destroyed: null };
+        }
         destroyed = bot;
         p.board[targetPosition] = null;
         p.discard.push(bot);
@@ -500,6 +516,15 @@
     if (!p || p.ap < 1) return { newState: s, error: 'Not enough AP' };
     const turn = s.turn;
     p.ap -= 1;
+    // Check opponent traps for Signal Jam
+    var trapFired = false;
+    s.players.forEach(function (opp) {
+      if (!trapFired && opp.id !== playerId && opp.baseHP > 0) {
+        var trapResult = ENGINE.checkTraps(s, opp.id, 'use_ability', { abilityName });
+        if (trapResult.triggered) { trapFired = true; s = trapResult.newState; }
+      }
+    });
+    if (trapFired) return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
     switch (abilityName) {
       case 'Repair Bot':
         return ENGINE.heal({...s, players: s.players}, playerId, targetPosition, 3);
@@ -540,6 +565,19 @@
     p.hand.splice(idx, 1);
     p.discard.push(card);
     p.ap -= 1;
+
+    // Check opponent traps for Counter-Hack
+    var instTrapFired = false;
+    s.players.forEach(function (opp) {
+      if (!instTrapFired && opp.id !== playerId && opp.baseHP > 0) {
+        var trapResult = ENGINE.checkTraps(s, opp.id, 'play_instant', { instantName: card.name });
+        if (trapResult.triggered) { instTrapFired = true; s = trapResult.newState; }
+      }
+    });
+    if (instTrapFired) {
+      s.turnLog.push({ time: Date.now(), playerId, msg: `${card.name} was countered by Counter-Hack!` });
+      return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
+    }
 
     switch (card.name) {
       case 'Scrap Bomb':
@@ -670,7 +708,19 @@
             }
             break;
           case 'Tripwire':
-            if (context && context.botName) {
+            if (context && context.playerId != null && context.position) {
+              const placedBy = s.players.find(pl => pl.id === context.playerId);
+              if (placedBy && placedBy.board[context.position]) {
+                placedBy.board[context.position].def = (placedBy.board[context.position].def || 0) - 1;
+                s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Tripwire triggered! Dealt 1 damage to ${context.botName || placedBy.board[context.position].name}.` });
+                // If Tripwire kills the bot, discard it
+                if (placedBy.board[context.position].def <= 0) {
+                  placedBy.discard.push(placedBy.board[context.position]);
+                  placedBy.board[context.position] = null;
+                  s.turnLog.push({ time: Date.now(), playerId: context.playerId, msg: `${context.botName || 'Bot'} was destroyed by Tripwire!` });
+                }
+              }
+            } else if (context && context.botName) {
               s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Tripwire triggered! Dealt 1 damage to ${context.botName}.` });
             }
             break;
@@ -682,10 +732,30 @@
             p.credits += 2;
             break;
           case 'Failsafe':
-            s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Failsafe saved a bot from destruction!` });
+            if (context && context.position && p.board[context.position]) {
+              p.board[context.position].def = 1;
+              s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Failsafe saved ${p.board[context.position].name} at 1 HP!` });
+            } else {
+              s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Failsafe saved a bot from destruction!` });
+            }
             break;
           case 'Retreat Order':
-            s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Retreat Order swapped bot to bench with 1 HP!` });
+            if (context && context.position && p.board[context.position]) {
+              const savedBot = p.board[context.position];
+              const bIdx = p.board.bench.findIndex(b => b === null);
+              if (bIdx !== -1) {
+                savedBot.def = 1;
+                p.board.bench[bIdx] = savedBot;
+                p.board[context.position] = null;
+                s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Retreat Order swapped ${savedBot.name} to bench with 1 HP!` });
+              } else {
+                // Bench full — keep at 1 HP in position
+                savedBot.def = 1;
+                s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Retreat Order saved ${savedBot.name} at 1 HP (bench full)!` });
+              }
+            } else {
+              s.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${p.name}'s Retreat Order swapped bot to bench with 1 HP!` });
+            }
             break;
         }
         p.traps.splice(i, 1);
