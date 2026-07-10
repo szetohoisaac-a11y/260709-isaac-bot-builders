@@ -38,6 +38,9 @@
     dom.benchSlots = $('#bench-slots');
     dom.marketCards = $('#market-cards');
     dom.handCards = $('#hand-cards');
+    dom.deckCount = $('#deck-count');
+    dom.discardCount = $('#discard-count');
+    dom.discardCards = $('#discard-cards');
     dom.enemyBoxes = $('#enemy-boxes');
     dom.passOverlay = $('#pass-overlay');
     dom.passPlayer = $('#pass-player');
@@ -121,6 +124,7 @@
     renderBench(state);
     renderHand(state);
     renderMarket(state);
+    renderSidePanel(state);
     renderEnemies(state);
     // Turn enforcement for network mode
     if (isNetworkMode()) {
@@ -239,11 +243,25 @@
       var chip = document.createElement('div');
       chip.className = 'bench-chip';
       if (bot) {
-        chip.textContent = bot.name;
-        chip.title = bot.name + ' | ATK ' + (bot.atk || 0) + ' HP ' + (bot.def || 0);
+        var atk = bot.atk != null ? bot.atk : 0;
+        var def = bot.def != null ? bot.def : 0;
+        var cost = bot.cost != null ? bot.cost : 0;
+        var imgHtml = bot.image
+          ? '<img src="' + escHtml(bot.image) + '" alt="' + escHtml(bot.name) + '" onerror="this.style.display=\'none\'">'
+          : '';
+        chip.innerHTML =
+          imgHtml +
+          '<div class="bench-info">' +
+          '<div class="bench-name">' + escHtml(bot.name) + '</div>' +
+          '<div class="bench-stats">' +
+          (cost ? '<span class="cost">' + cost + 'c</span> ' : '') +
+          (atk > 0 ? '<span class="atk">ATK ' + atk + '</span> ' : '') +
+          '<span class="hp">HP ' + def + '</span>' +
+          '</div></div>';
+        chip.title = bot.effect || '';
         chip.classList.add(botCategoryClass(bot.category));
       } else {
-        chip.textContent = '—';
+        chip.innerHTML = '<span class="bench-empty">—</span>';
         chip.style.opacity = '0.4';
       }
       chip.dataset.benchIndex = i;
@@ -323,6 +341,36 @@
       });
       dom.marketCards.appendChild(cardEl);
     });
+  }
+
+  function renderSidePanel(state) {
+    var p = getPlayer(state);
+    if (!p) return;
+    var deckCount = (p.deck || []).length;
+    var discardCount = (p.discard || []).length;
+    // Deck count
+    if (dom.deckCount) {
+      dom.deckCount.textContent = deckCount;
+    }
+    // Discard count
+    if (dom.discardCount) {
+      dom.discardCount.textContent = discardCount;
+    }
+    // Discard cards list (most recent at top)
+    if (dom.discardCards) {
+      dom.discardCards.innerHTML = '';
+      var cards = p.discard.slice().reverse();
+      cards.forEach(function (card) {
+        var chip = document.createElement('div');
+        chip.className = 'discard-card';
+        var imgHtml = card.image
+          ? '<img src="' + escHtml(card.image) + '" alt="' + escHtml(card.name) + '" onerror="this.style.display=\'none\'">'
+          : '';
+        chip.innerHTML = imgHtml + '<span class="dc-name">' + escHtml(card.name) + '</span>';
+        chip.title = card.name + (card.cost != null ? ' (' + card.cost + 'c)' : '') + '\n' + (card.effect || '');
+        dom.discardCards.appendChild(chip);
+      });
+    }
   }
 
   function renderEnemies(state) {

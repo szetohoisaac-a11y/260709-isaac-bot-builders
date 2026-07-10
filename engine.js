@@ -757,6 +757,22 @@
     s.bids = {};
     delete s._tiePlayers;
 
+    // Auto-assign: if only one player has chips, they get all remaining cards
+    const alive = s.players.filter(pl => pl.baseHP > 0);
+    const playersWithChips = alive.filter(pl => pl.biddingChips > 0);
+    const remaining = s.auctionPool.slice(s.auctionRound);
+
+    if (playersWithChips.length === 1 && remaining.length > 0) {
+      const winner = playersWithChips[0];
+      for (const card of remaining) { winner.deck.push({...card}); }
+      const brokeNames = alive.filter(pl => pl.id !== winner.id).map(pl => pl.name).join(', ');
+      s.turnLog.push({ time: Date.now(), msg: `${brokeNames} ran out of chips! ${winner.name} gets all ${remaining.length} remaining auction cards.` });
+      s.auctionRound = s.totalAuctionRounds;
+    } else if (playersWithChips.length === 0 && remaining.length > 0) {
+      s.turnLog.push({ time: Date.now(), msg: 'All players out of chips! Remaining auction cards discarded.' });
+      s.auctionRound = s.totalAuctionRounds;
+    }
+
     if (s.auctionRound >= s.totalAuctionRounds || !s.auctionPool[s.auctionRound]) {
       // Auction complete — start the game
       s.phase = 'playing';
@@ -784,11 +800,19 @@
         if (s.marketDeck.length) s.marketRow.push(s.marketDeck.pop());
       }
 
-      // Draw 5 cards for each player, then start player 1's turn
+      // Draw 5 cards for each player — bots go straight to bench
       for (const p of s.players) {
         for (let i = 0; i < 5; i++) {
           if (!p.deck.length && p.discard.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
-          if (p.deck.length) p.hand.push(p.deck.pop());
+          if (!p.deck.length) break;
+          const card = p.deck.pop();
+          if (isBotCard(card)) {
+            const bIdx = p.board.bench.findIndex(b => b === null);
+            if (bIdx !== -1) { p.board.bench[bIdx] = card; }
+            else { p.hand.push(card); }
+          } else {
+            p.hand.push(card);
+          }
         }
       }
       s.turnLog.push({ time: Date.now(), msg: 'Auction complete! Each player draws 5 cards. Game begins.' });
