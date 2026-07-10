@@ -39,6 +39,8 @@
     dom.benchSlots = $('#bench-slots');
     dom.marketCards = $('#market-cards');
     dom.handCards = $('#hand-cards');
+    dom.trapsCount = $('#traps-count');
+    dom.trapsCards = $('#traps-cards');
     dom.deckCount = $('#deck-count');
     dom.discardCount = $('#discard-count');
     dom.discardCards = $('#discard-cards');
@@ -140,6 +142,22 @@
     }
   }
 
+  // Format attack display: dual stats if card has different bot vs base damage
+  function botAttackDisplay(bot) {
+    var atk = bot.atk != null ? bot.atk : 0;
+    if (atk <= 0) return '';
+    var effect = bot.effect || '';
+    // Look for "or X to base" or "OR X to base" with a different value
+    var baseMatch = effect.match(/or\s+(\d+)\s+to\s+(enemy\s+)?base/i);
+    if (baseMatch) {
+      var baseDmg = parseInt(baseMatch[1], 10);
+      if (baseDmg !== atk) {
+        return '<span class="atk">ATK ' + atk + ' vs Bot</span> <span class="atk atk-base">' + baseDmg + ' vs Base</span>';
+      }
+    }
+    return '<span class="atk">ATK ' + atk + '</span>';
+  }
+
   // ========== RENDER FUNCTIONS ==========
 
   function renderAll(state) {
@@ -222,8 +240,10 @@
           '<span class="card-type-badge">' + escHtml(bot.category) + '</span>' +
           imgHtml +
           '<div class="bot-name">' + escHtml(bot.name) + '</div>' +
-          '<span class="atk">ATK ' + atk + '</span> ' +
-          '<span class="hp">HP ' + def + '</span>';
+          botAttackDisplay(bot) +
+          (atk > 0 ? ' ' : '') +
+          '<span class="hp">HP ' + def + '</span>' +
+          (bot.effect ? '<div class="bot-effect">' + escHtml(bot.effect) + '</div>' : '');
         cardDiv.className = 'slot-card ' + botCategoryClass(bot.category);
       } else {
         cardDiv.innerHTML = '<span class="empty-slot">empty</span>';
@@ -284,10 +304,12 @@
           '<div class="bench-name">' + escHtml(bot.name) + '</div>' +
           '<div class="bench-stats">' +
           (cost ? '<span class="cost">' + cost + 'c</span> ' : '') +
-          (atk > 0 ? '<span class="atk">ATK ' + atk + '</span> ' : '') +
+          botAttackDisplay(bot) +
+          (atk > 0 ? ' ' : '') +
           '<span class="hp">HP ' + def + '</span>' +
-          '</div></div>';
-        chip.title = bot.effect || '';
+          '</div>' +
+          (bot.effect ? '<div class="bot-effect">' + escHtml(bot.effect) + '</div>' : '') +
+          '</div>';
         chip.classList.add(botCategoryClass(bot.category));
       } else {
         chip.innerHTML = '<span class="bench-empty">—</span>';
@@ -377,6 +399,22 @@
   function renderSidePanel(state) {
     var p = getPlayer(state);
     if (!p) return;
+    // Active traps
+    var trapCount = (p.traps || []).length;
+    if (dom.trapsCount) dom.trapsCount.textContent = trapCount;
+    if (dom.trapsCards) {
+      dom.trapsCards.innerHTML = '';
+      (p.traps || []).forEach(function (trap) {
+        var chip = document.createElement('div');
+        chip.className = 'trap-card';
+        var cost = trap.cost != null ? trap.cost : 0;
+        chip.innerHTML =
+          '<span class="dc-name">' + escHtml(trap.name) + '</span>' +
+          '<span class="trap-cost">' + cost + 'c</span>';
+        chip.title = trap.name + '\n' + (trap.effect || '');
+        dom.trapsCards.appendChild(chip);
+      });
+    }
     var deckCount = (p.deck || []).length;
     var discardCount = (p.discard || []).length;
     // Deck count
@@ -1812,11 +1850,41 @@
     }
   }
 
+  // ========== IMAGE PRELOADER ==========
+  var _preloadStarted = false;
+  var _preloadCount = 0;
+  var _preloadTotal = 0;
+
+  function preloadImages() {
+    if (_preloadStarted) return;
+    _preloadStarted = true;
+    var all = Engine.loadCards();
+    var urls = [];
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].image && urls.indexOf(all[i].image) === -1) {
+        urls.push(all[i].image);
+      }
+    }
+    _preloadTotal = urls.length;
+    if (!_preloadTotal) return;
+    for (var j = 0; j < urls.length; j++) {
+      var img = new Image();
+      img.onload = function () {
+        _preloadCount++;
+      };
+      img.onerror = function () {
+        _preloadCount++;
+      };
+      img.src = urls[j];
+    }
+  }
+
   // ========== BOOT ==========
   function init() {
     cacheDom();
     wireEvents();
     wireAuctionEvents();
+    preloadImages();
   }
 
   if (document.readyState === 'loading') {

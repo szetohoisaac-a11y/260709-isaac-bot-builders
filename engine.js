@@ -124,23 +124,26 @@
     if (!p.deck.length && !p.discard.length) return { newState: s, logEntry: null, error: 'No cards to draw' };
     if (!p.deck.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
     const card = p.deck.pop();
-    // Auto-bench: bot cards go straight to bench if possible, else hand, else pending
+    // Auto-place: bot cards go bench first, then matching position, else pending
     if (isBotCard(card)) {
       const room = hasRoomForBot(p, card);
       if (room.canBench) {
         const bIdx = p.board.bench.findIndex(b => b === null);
         p.board.bench[bIdx] = card;
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} drew ${card.name} → bench.` });
       } else if (room.canPosition) {
-        p.hand.push(card); // player can play it to the open position
+        p.board[room.position] = card;
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} drew ${card.name} → ${room.position}.` });
       } else {
         // Nowhere to go — player must choose
         s.pendingPlacement = { playerId, card, source: 'draw' };
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} drew ${card.name} — no room! Choose a slot.` });
       }
     } else {
       p.hand.push(card);
+      s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} drew a card.` });
     }
     p.ap -= 1;
-    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} drew a card.` });
     return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
   };
 
@@ -155,22 +158,25 @@
     if (p.deck.length || p.discard.length) {
       if (!p.deck.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
       const card = p.deck.pop();
-      // Auto-bench: bot cards go straight to bench if possible, else hand, else pending
+      // Auto-place: bot cards go bench first, then matching position, else pending
       if (isBotCard(card)) {
         const room = hasRoomForBot(p, card);
         if (room.canBench) {
           const bIdx = p.board.bench.findIndex(b => b === null);
           p.board.bench[bIdx] = card;
+          s.turnLog.push({ time: Date.now(), playerId: p.id, msg: `${p.name} drew ${card.name} → bench.` });
         } else if (room.canPosition) {
-          p.hand.push(card); // player can play it to the open position
+          p.board[room.position] = card;
+          s.turnLog.push({ time: Date.now(), playerId: p.id, msg: `${p.name} drew ${card.name} → ${room.position}.` });
         } else {
           // Nowhere to go — player must choose
           s.pendingPlacement = { playerId: p.id, card, source: 'draw' };
+          s.turnLog.push({ time: Date.now(), playerId: p.id, msg: `${p.name} drew ${card.name} — no room! Choose a slot.` });
         }
       } else {
         p.hand.push(card);
+        s.turnLog.push({ time: Date.now(), playerId: p.id, msg: `${p.name} drew 1 card (turn start).` });
       }
-      s.turnLog.push({ time: Date.now(), playerId: p.id, msg: `${p.name} drew 1 card (turn start).` });
     }
     return { newState: s };
   };
@@ -489,8 +495,11 @@
     if (!p) return { newState: s, error: 'Player not found' };
     const bot = p.board[targetPosition];
     if (!bot) return { newState: s, error: 'No bot in position' };
-    bot.def = (bot.def || 0) + amount;
-    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} healed ${bot.name} for ${amount} HP.` });
+    const template = ENGINE.loadCards().find(c => c.id === bot.id);
+    const maxHP = template ? (template.def || 0) : (bot.def + amount);
+    const healed = Math.min(bot.def + amount, maxHP) - bot.def;
+    bot.def = Math.min((bot.def || 0) + amount, maxHP);
+    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} healed ${bot.name} for ${healed} HP.` });
     return { newState: s, logEntry: s.turnLog[s.turnLog.length - 1] };
   };
 

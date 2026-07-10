@@ -8,6 +8,8 @@
 .slot-card { font-size: 13px; font-weight: 700; }
 .slot-card .hp { font-size: 11px; color: var(--muted); }
 .slot-card .atk { font-size: 11px; color: #e74c3c; }
+.atk-base { color: #c0392b !important; }
+.slot-card .bot-effect, .bench-chip .bot-effect { font-size: 11px; font-weight: 400; color: var(--text); margin-top: 4px; line-height: 1.3; font-style: italic; }
 #bench, #market-row, #hand { margin-bottom: 10px; }
 #bench-slots, #hand-cards { display: flex; gap: 8px; flex-wrap: wrap; }
 .bench-chip, .hand-card, .market-card { padding: 6px 10px; border: 1.5px solid var(--rule); border-radius: 8px; font-size: 12px; cursor: pointer; background: #fff; }
@@ -73,8 +75,12 @@ input { font-family: var(--font); font-size: 14px; padding: 8px; border: 2px sol
 
 /* ── Side Panel: Deck & Discard ── */
 #side-panel { width: 160px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
-#deck-stack, #discard-stack { background: var(--tint); border-radius: 12px; padding: 10px; text-align: center; }
-#deck-stack h4, #discard-stack h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: .1em; color: var(--accent); }
+#traps-stack, #deck-stack, #discard-stack { background: var(--tint); border-radius: 12px; padding: 10px; text-align: center; }
+#traps-stack h4, #deck-stack h4, #discard-stack h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: .1em; color: var(--accent); }
+#traps-count { font-size: 22px; font-weight: 700; color: var(--heading); margin-bottom: 6px; }
+#traps-cards { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
+.trap-card { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px; background: #fff; border: 1px solid #c0392b; border-radius: 6px; font-size: 10px; font-weight: 600; cursor: default; }
+.trap-card .trap-cost { color: #c0392b; font-weight: 700; margin-left: 4px; }
 #deck-count, #discard-count { font-size: 22px; font-weight: 700; color: var(--heading); margin-bottom: 6px; }
 .stack-pile { width: 100%; height: 48px; background: var(--accent); border-radius: 6px; opacity: 0.3; margin: 0 auto; }
 #discard-cards { display: flex; flex-direction: column; gap: 4px; max-height: 420px; overflow-y: auto; }
