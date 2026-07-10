@@ -190,3 +190,29 @@ test('ambush triggers on base attack', () => {
   assert.equal(result.newState.players[0].board.active.def, 3); // Striker took 2 damage
   assert.equal(result.newState.players[1].traps.length, 0); // Trap consumed
 });
+
+test('buyFromMarket moves card to hand and costs credits', () => {
+  const s = E.createGame(['Alice'], 'shared');
+  s.players[0].ap = 3; s.players[0].credits = 5;
+  s.marketRow = [{ id: '026', type: 'card', name: 'Scrap Bomb', category: 'Instant', cost: 1, atk: 3, def: 0, effect: 'test', image: null }];
+  const result = E.buyFromMarket(s, 1, 0);
+  assert.equal(result.newState.players[0].credits, 4);
+  assert.equal(result.newState.players[0].ap, 2);
+  assert.equal(result.newState.players[0].hand[0].name, 'Scrap Bomb');
+});
+
+test('checkWin returns winner when only one player alive', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.players[0].baseHP = 0;
+  const result = E.checkWin(s);
+  assert.ok(result.winner);
+  assert.equal(result.winner.name, 'Bob');
+});
+
+test('scavenge takes bot from eliminated player', () => {
+  const s = E.createGame(['Alice', 'Bob'], 'shared');
+  s.players[1].board.active = { id: '001', type: 'card', name: 'Striker', category: 'Active', cost: 3, atk: 4, def: 5, effect: 'test', image: null };
+  const result = E.scavenge(s, 1, 2, 'active');
+  assert.equal(result.newState.players[1].board.active, null);
+  assert.equal(result.newState.players[0].board.bench[0].name, 'Striker');
+});

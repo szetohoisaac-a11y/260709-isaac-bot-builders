@@ -598,6 +598,67 @@
     return { newState: s, triggered };
   };
 
+  ENGINE.buyFromMarket = function (state, playerId, marketIndex) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (!p) return { newState: s, error: 'Player not found' };
+    if (p.ap < 1) return { newState: s, error: 'Not enough AP' };
+    if (marketIndex < 0 || marketIndex >= s.marketRow.length) return { newState: s, error: 'Invalid market index' };
+    const card = s.marketRow[marketIndex];
+    if (!card) return { newState: s, error: 'No card' };
+    if ((card.cost || 0) > p.credits) return { newState: s, error: 'Not enough credits' };
+    p.credits -= (card.cost || 0);
+    p.ap -= 1;
+    p.hand.push(card);
+    s.marketRow.splice(marketIndex, 1);
+    // Refill market
+    if (s.marketDeck.length) s.marketRow.push(s.marketDeck.pop());
+    else if (s.players.find(pl => pl.discard.length)) {
+      const pool = [];
+      for (const pl of s.players) { pool.push(...pl.discard); pl.discard = []; }
+      if (pool.length) { s.marketDeck = ENGINE.shuffle(pool); s.marketRow.push(s.marketDeck.pop()); }
+    }
+    s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} bought ${card.name} from market (-${card.cost} credits).` });
+    return { newState: s };
+  };
+
+  ENGINE.earnCredits = function (state, playerId, amount) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (p) p.credits += amount;
+    return { newState: s };
+  };
+
+  ENGINE.checkWin = function (state) {
+    const alive = state.players.filter(p => p.baseHP > 0);
+    if (alive.length === 1) return { winner: alive[0] };
+    if (alive.length === 0) return { winner: null };
+    return { winner: null };
+  };
+
+  ENGINE.scavenge = function (state, winnerId, loserId, chosenPosition) {
+    const s = ENGINE.clone(state);
+    const loser = s.players.find(pl => pl.id === loserId);
+    const winner = s.players.find(pl => pl.id === winnerId);
+    if (!loser || !winner) return { newState: s };
+    let bot = null;
+    if (chosenPosition === 'bench') {
+      const idx = loser.board.bench.findIndex(b => b !== null);
+      if (idx !== -1) bot = loser.board.bench[idx];
+      if (bot) loser.board.bench[idx] = null;
+    } else {
+      bot = loser.board[chosenPosition];
+      if (bot) loser.board[chosenPosition] = null;
+    }
+    if (!bot) return { newState: s };
+    // Put on winner's bench or hand
+    const bIdx = winner.board.bench.findIndex(b => b === null);
+    if (bIdx !== -1) winner.board.bench[bIdx] = bot;
+    else winner.hand.push(bot);
+    s.turnLog.push({ time: Date.now(), playerId: winnerId, msg: `${winner.name} scavenged ${bot.name} from ${loser.name}!` });
+    return { newState: s };
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
   if (typeof window !== 'undefined') window.GameEngine = ENGINE;
 })();
