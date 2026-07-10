@@ -190,6 +190,77 @@
     return state.players.find(p => p.id === state.activePlayer);
   };
 
+  // Deal damage to a bot or base. Returns destroyed bot if applicable.
+  ENGINE.dealDamage = function (state, targetPlayerId, targetType, targetPosition, amount) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === targetPlayerId);
+    if (!p) return { newState: s, destroyed: null };
+    let destroyed = null;
+    if (targetType === 'base') {
+      p.baseHP = Math.max(0, p.baseHP - amount);
+    } else if (targetType === 'bot' && targetPosition) {
+      const bot = p.board[targetPosition];
+      if (!bot) return { newState: s, destroyed: null };
+      bot.def = (bot.def || 0) - amount;
+      if (bot.def <= 0) {
+        destroyed = bot;
+        p.board[targetPosition] = null;
+        p.discard.push(bot);
+      }
+    }
+    return { newState: s, destroyed };
+  };
+
+  // Attack: bot at position attacks a target
+  ENGINE.attack = function (state, playerId, botPosition, targetPlayerId, targetType, targetPosition) {
+    const s = ENGINE.clone(state);
+    const attacker = s.players.find(pl => pl.id === playerId);
+    if (!attacker) return { newState: s, error: 'Attacker not found' };
+    if (attacker.ap < 1) return { newState: s, error: 'Not enough AP' };
+    const bot = attacker.board[botPosition];
+    if (!bot) return { newState: s, error: 'No bot in position' };
+    const atk = bot.atk || 0;
+    attacker.ap -= 1;
+
+    // Check for traps on defender
+    const defender = s.players.find(pl => pl.id === targetPlayerId);
+    if (defender && defender.traps && defender.traps.length) {
+      for (let i = defender.traps.length - 1; i >= 0; i--) {
+        const trap = defender.traps[i];
+        if (trap.name === 'Ambush' && targetType === 'base') {
+          const result = ENGINE.dealDamage(s, playerId, 'bot', botPosition, 2);
+          result.newState.players.find(pl => pl.id === targetPlayerId).traps.splice(i, 1);
+          const dmgResult = ENGINE.dealDamage(result.newState, targetPlayerId, targetType, targetPosition, Math.max(0, atk - 2));
+          dmgResult.newState.turnLog.push({ time: Date.now(), playerId: targetPlayerId, msg: `${defender.name}'s Ambush triggered! Dealt 2 damage to ${bot.name}.` });
+          dmgResult.newState.turnLog.push({ time: Date.now(), playerId, msg: `${attacker.name}'s ${bot.name} attacked ${defender.name}'s ${targetType} for ${Math.max(0, atk - 2)} damage.` });
+          return { newState: dmgResult.newState, logEntry: dmgResult.newState.turnLog[dmgResult.newState.turnLog.length - 1] };
+        }
+      }
+    }
+
+    const result = ENGINE.dealDamage(s, targetPlayerId, targetType, targetPosition, atk);
+    result.newState.turnLog.push({ time: Date.now(), playerId, msg: `${attacker.name}'s ${bot.name} attacked ${defender ? defender.name : '?'}'s ${targetType} for ${atk} damage.` });
+    return { newState: result.newState, logEntry: result.newState.turnLog[result.newState.turnLog.length - 1], destroyed: result.destroyed };
+  };
+
+  // Breacher attack: bypasses Defensive bots when targeting base
+  ENGINE.breacherAttack = function (state, playerId, targetPlayerId, targetType) {
+    if (targetType === 'base') {
+      // Bypass defensive intercept — deal damage directly to base
+      const s = ENGINE.clone(state);
+      const attacker = s.players.find(pl => pl.id === playerId);
+      if (!attacker || attacker.ap < 1) return { newState: s, error: 'Not enough AP' };
+      const bot = attacker.board.active;
+      if (!bot) return { newState: s, error: 'No bot' };
+      attacker.ap -= 1;
+      const result = ENGINE.dealDamage(s, targetPlayerId, 'base', null, bot.atk || 0);
+      result.newState.turnLog.push({ time: Date.now(), playerId, msg: `${attacker.name}'s Breacher bypassed defenses and dealt ${bot.atk} damage to ${result.newState.players.find(p=>p.id===targetPlayerId).name}'s base!` });
+      return { newState: result.newState };
+    }
+    // vs bot: normal attack
+    return ENGINE.attack(state, playerId, 'active', targetPlayerId, 'bot', 'active');
+  };
+
   if (typeof module !== 'undefined' && module.exports) module.exports = ENGINE;
   if (typeof window !== 'undefined') window.GameEngine = ENGINE;
 })();
