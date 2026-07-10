@@ -1,6 +1,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
+const wsServer = require('./server/ws-server.js');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -44,8 +45,15 @@ function start(root = process.cwd(), port = Number(process.env.PORT) || 5050) {
       res.end(data);
     });
   });
+
+  // Attach WebSocket server for per-device multiplayer
+  const { wss, roomManager } = wsServer.attach(server);
+  server._wss = wss;
+  server._roomManager = roomManager;
+
   server.listen(port, () => {
     console.log(`Bot Brawl gallery → http://localhost:${port}`);
+    console.log(`WebSocket server ready on ws://localhost:${port}`);
   });
   return server;
 }
