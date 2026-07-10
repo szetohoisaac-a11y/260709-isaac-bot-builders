@@ -119,4 +119,18 @@
   root.appendChild(family('Cards · modules', g.card));
   root.appendChild(family('Tokens · bots', g.token));
   root.appendChild(family('Tiles · arena', g.tile));
+
+  // Play online link
+  const playLink = document.createElement('div');
+  playLink.style.cssText = 'text-align:center;margin:36px 0 12px;padding:16px;border-top:2px solid var(--rule);';
+  const a = document.createElement('a');
+  a.href = 'play.html';
+  a.textContent = 'Play Online';
+  a.style.cssText = 'font-family:var(--font);font-size:18px;font-weight:700;color:var(--accent);text-decoration:none;padding:10px 24px;border:2px solid var(--accent);border-radius:12px;display:inline-block;';
+  playLink.appendChild(a);
+  const sub = document.createElement('div');
+  sub.style.cssText = 'font-family:var(--font);font-size:12px;color:var(--muted);margin-top:6px;';
+  sub.textContent = 'Play Bot Builders against friends — coming soon';
+  playLink.appendChild(sub);
+  root.appendChild(playLink);
 })();
