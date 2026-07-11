@@ -107,6 +107,17 @@
     return card && ['Active', 'Secondary', 'Defensive', 'Support'].indexOf(card.category) !== -1;
   }
 
+  // Check if a bot card can only target bots (not base)
+  function isBotOnlyAttacker(card) {
+    if (!card || !card.effect) return false;
+    var eff = card.effect.toLowerCase();
+    // If effect specifies only "bot" as target without mentioning "base", it's bot-only
+    if (/deal\s+\d+\s+damage\s+to\s+(target\s+enemy\s+)?bot/i.test(eff) && !/or\s+.*base/i.test(eff) && !/bot\s+or\s+base/i.test(eff)) {
+      return true;
+    }
+    return false;
+  }
+
   // Check where a bot can be placed
   function hasRoomForBot(player, card) {
     const pos = card.category.toLowerCase();
@@ -340,6 +351,10 @@
     if (attacker.ap < 1) return { newState: s, error: 'Not enough AP' };
     const bot = attacker.board[botPosition];
     if (!bot) return { newState: s, error: 'No bot in position' };
+    // Bot-only attackers cannot target base
+    if (targetType === 'base' && isBotOnlyAttacker(bot)) {
+      return { newState: s, error: `${bot.name} can only attack enemy bots, not the base.` };
+    }
     const atk = bot.atk || 0;
     attacker.ap -= 1;
 

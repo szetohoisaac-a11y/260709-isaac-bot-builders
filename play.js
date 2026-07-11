@@ -142,7 +142,8 @@
     }
   }
 
-  // Format attack display: dual stats if card has different bot vs base damage
+  // Format attack display: dual stats if card has different bot vs base damage,
+  // or "vs Bot" label if the card can only target bots
   function botAttackDisplay(bot) {
     var atk = bot.atk != null ? bot.atk : 0;
     if (atk <= 0) return '';
@@ -154,6 +155,9 @@
       if (baseDmg !== atk) {
         return '<span class="atk">ATK ' + atk + ' vs Bot</span> <span class="atk atk-base">' + baseDmg + ' vs Base</span>';
       }
+    }
+    if (isBotOnlyAttacker(bot)) {
+      return '<span class="atk">ATK ' + atk + ' vs Bot</span>';
     }
     return '<span class="atk">ATK ' + atk + '</span>';
   }
@@ -494,6 +498,14 @@
   function isBotCard(card) {
     return card && ['Active', 'Secondary', 'Defensive', 'Support'].indexOf(card.category) !== -1;
   }
+  function isBotOnlyAttacker(card) {
+    if (!card || !card.effect) return false;
+    var eff = card.effect.toLowerCase();
+    if (/deal\s+\d+\s+damage\s+to\s+(target\s+enemy\s+)?bot/i.test(eff) && !/or\s+.*base/i.test(eff) && !/bot\s+or\s+base/i.test(eff)) {
+      return true;
+    }
+    return false;
+  }
 
   function isInstantCard(card) {
     return card && card.category === 'Instant';
@@ -570,24 +582,26 @@
       }
       dom.targetingBoard.appendChild(el);
     });
-    // Base target
-    var baseEl = document.createElement('div');
-    baseEl.className = 'target-slot';
-    baseEl.style.cssText =
-      'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
-    var breacherBonus = (attackingBot && attackingBot.name === 'Breacher') ? ' (bypasses defenses)' : '';
-    baseEl.innerHTML = '<strong>Attack Base</strong><br><span class="hp">HP: ' + targetPlayer.baseHP + '</span>' +
-      (breacherBonus ? '<br><span style="font-size:11px;color:#e74c3c;font-weight:700;">' + breacherBonus + '</span>' : '');
-    baseEl.addEventListener('click', function () {
-      uiState.targeting.targetType = 'base';
-      uiState.targeting.targetPosition = null;
-      highlightTargetSelection(baseEl, dom.targetingBoard);
-      dom.btnConfirm.disabled = false;
-    });
-    if (uiState.targeting.targetType === 'base') {
-      baseEl.classList.add('selected');
+    // Base target (hidden for bot-only attackers)
+    if (!attackingBot || !isBotOnlyAttacker(attackingBot)) {
+      var baseEl = document.createElement('div');
+      baseEl.className = 'target-slot';
+      baseEl.style.cssText =
+        'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
+      var breacherBonus = (attackingBot && attackingBot.name === 'Breacher') ? ' (bypasses defenses)' : '';
+      baseEl.innerHTML = '<strong>Attack Base</strong><br><span class="hp">HP: ' + targetPlayer.baseHP + '</span>' +
+        (breacherBonus ? '<br><span style="font-size:11px;color:#e74c3c;font-weight:700;">' + breacherBonus + '</span>' : '');
+      baseEl.addEventListener('click', function () {
+        uiState.targeting.targetType = 'base';
+        uiState.targeting.targetPosition = null;
+        highlightTargetSelection(baseEl, dom.targetingBoard);
+        dom.btnConfirm.disabled = false;
+      });
+      if (uiState.targeting.targetType === 'base') {
+        baseEl.classList.add('selected');
+      }
+      dom.targetingBoard.appendChild(baseEl);
     }
-    dom.targetingBoard.appendChild(baseEl);
     dom.btnConfirm.disabled = true;
     dom.targetingOverlay.style.display = 'flex';
   }
