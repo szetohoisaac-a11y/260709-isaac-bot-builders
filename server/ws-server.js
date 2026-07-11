@@ -397,12 +397,12 @@ function handlePlayerAction(ws, msg, rm) {
       }
       result = ENGINE.attack(room.state, player.id, action.botPosition, action.targetPlayerId, action.targetType, action.targetPosition);
 
-      // Trigger secondary bot on-hit if applicable
-      if (!result.error && action.targetType === 'bot' && action.targetPosition) {
+      // Trigger secondary bot on-hit — only when secondary bot itself attacks
+      if (!result.error && action.targetType === 'bot' && action.targetPosition && action.botPosition === 'secondary') {
         const pState = room.state.players.find(p => p.id === player.id);
-        const secondaryBot = pState && pState.board.secondary;
-        if (secondaryBot) {
-          const secResult = ENGINE.secondaryOnHit(result.newState, player.id, secondaryBot.name, action.targetPlayerId, action.targetPosition);
+        const attackingSecBot = pState && pState.board.secondary;
+        if (attackingSecBot) {
+          const secResult = ENGINE.secondaryOnHit(result.newState, player.id, attackingSecBot.name, action.targetPlayerId, action.targetPosition);
           result = { ...result, newState: secResult.newState };
         }
       }
@@ -411,6 +411,10 @@ function handlePlayerAction(ws, msg, rm) {
 
     case 'USE_ABILITY':
       result = ENGINE.useSupportAbility(room.state, player.id, action.abilityName, action.targetPosition);
+      break;
+
+    case 'USE_SPECIAL':
+      result = ENGINE.useBotSpecial(room.state, player.id, action.cardName, action.targetPosition);
       break;
 
     case 'PLAY_INSTANT':

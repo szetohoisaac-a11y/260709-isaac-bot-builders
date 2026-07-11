@@ -645,11 +645,13 @@
       return;
     }
     gameState = result.newState;
-    // Check for secondary on-hit effects
-    var secondaryBot = p.board.secondary;
-    if (secondaryBot && t.targetType === 'bot' && t.targetPosition) {
-      var secResult = Engine.secondaryOnHit(gameState, p.id, secondaryBot.name, t.targetPlayerId, t.targetPosition);
-      gameState = secResult.newState;
+    // Secondary bot on-hit effects — only when the secondary bot itself attacks
+    if (t.botPosition === 'secondary' && t.targetType === 'bot' && t.targetPosition) {
+      var attackingSecBot = p.board.secondary;
+      if (attackingSecBot) {
+        var secResult = Engine.secondaryOnHit(gameState, p.id, attackingSecBot.name, t.targetPlayerId, t.targetPosition);
+        gameState = secResult.newState;
+      }
     }
     dom.targetingOverlay.style.display = 'none';
     clearUiSelections();
@@ -710,10 +712,11 @@
       });
       bar.appendChild(atkBtn);
     }
-    // Ability button (support bots)
-    if (bot.category === 'Support') {
+    // Ability button (support bots + bots with Special abilities)
+    var hasSpecial = bot.effect && /special\s*\(/i.test(bot.effect);
+    if (bot.category === 'Support' || hasSpecial) {
       var abBtn = document.createElement('button');
-      abBtn.textContent = 'Use Ability (' + bot.name + ')';
+      abBtn.textContent = (bot.category === 'Support' ? 'Use Ability' : 'Use Special') + ' (' + bot.name + ')';
       abBtn.addEventListener('click', function () {
         startAbilityFlow();
       });
@@ -761,10 +764,66 @@
     var bot = p.board[uiState.selectedSlot];
     if (!bot) return;
     var abilityName = bot.name;
-    // For abilities that target bots, show own board positions as targets
+
+    // Active bot specials
+    if (abilityName === 'Brawler') {
+      // Self-buff: apply immediately, no targeting needed
+      if (isNetworkMode()) {
+        networkAction({ type: 'USE_SPECIAL', cardName: abilityName, targetPosition: uiState.selectedSlot });
+        return;
+      }
+      var result = Engine.useBotSpecial(gameState, p.id, abilityName, uiState.selectedSlot);
+      if (result.error) { alert(result.error); return; }
+      gameState = result.newState;
+      clearUiSelections();
+      renderAll(gameState);
+      renderActionButtons();
+      return;
+    }
+    if (abilityName === 'Commander') {
+      // Buff secondary: need targeting on secondary position
+      openAbilityTargeting(abilityName, p.id);
+      return;
+    }
+    if (abilityName === 'Saboteur') {
+      // Destroy opponent trap: pick opponent
+      openSaboteurTargeting();
+      return;
+    }
+
+    // Support bot abilities that target bots
     if (['Repair Bot', 'Medic', 'Booster', 'Shield Gen', 'Overcharger', 'Bounty Drone'].indexOf(abilityName) !== -1) {
       openAbilityTargeting(abilityName, p.id);
     }
+  }
+
+  function openSaboteurTargeting() {
+    if (!gameState) return;
+    var opponents = getOpponents(gameState);
+    var withTraps = opponents.filter(function (o) { return (o.traps || []).length > 0; });
+    if (withTraps.length === 0) {
+      alert('No opponents have traps set.');
+      return;
+    }
+    dom.targetingHeader.textContent = 'Saboteur — Destroy a Trap';
+    dom.targetingBoard.innerHTML = '';
+    dom.btnConfirm.textContent = 'Confirm';
+    uiState.targeting = { action: 'saboteur', targetPlayerId: null };
+    withTraps.forEach(function (opp) {
+      var el = document.createElement('div');
+      el.className = 'target-slot';
+      el.style.cssText =
+        'border:2px solid var(--rule);border-radius:8px;padding:8px;margin:4px;cursor:pointer;background:#fff;transition:all 0.15s;';
+      el.innerHTML = '<strong>' + escHtml(opp.name) + '</strong><br><span style="font-size:11px;color:var(--muted)">Traps: ' + opp.traps.length + '</span>';
+      el.addEventListener('click', function () {
+        uiState.targeting.targetPlayerId = opp.id;
+        highlightTargetSelection(el, dom.targetingBoard);
+        dom.btnConfirm.disabled = false;
+      });
+      dom.targetingBoard.appendChild(el);
+    });
+    dom.btnConfirm.disabled = true;
+    dom.targetingOverlay.style.display = 'flex';
   }
 
   function openAbilityTargeting(abilityName, playerId) {
@@ -813,14 +872,46 @@
       var targetPos = t.targetPosition;
       uiState.targeting = null;
       clearUiSelections();
-      networkAction({ type: 'USE_ABILITY', abilityName: abilityName, targetPosition: targetPos });
+      if (abilityName === 'Commander') {
+        networkAction({ type: 'USE_SPECIAL', cardName: abilityName, targetPosition: targetPos });
+      } else {
+        networkAction({ type: 'USE_ABILITY', abilityName: abilityName, targetPosition: targetPos });
+      }
       return;
     }
-    var result = Engine.useSupportAbility(gameState, p.id, t.abilityName, t.targetPosition);
+    var result;
+    if (t.abilityName === 'Commander') {
+      result = Engine.useBotSpecial(gameState, p.id, t.abilityName, t.targetPosition);
+    } else {
+      result = Engine.useSupportAbility(gameState, p.id, t.abilityName, t.targetPosition);
+    }
     if (result.error) {
       alert(result.error);
       return;
     }
+    gameState = result.newState;
+    dom.targetingOverlay.style.display = 'none';
+    clearUiSelections();
+    renderAll(gameState);
+    checkWinAfterAction();
+  }
+
+  function confirmSaboteur() {
+    if (!uiState.targeting || !gameState) return;
+    var t = uiState.targeting;
+    if (!t.targetPlayerId) return;
+    var p = getPlayer(gameState);
+    if (!p) return;
+    if (isNetworkMode()) {
+      dom.targetingOverlay.style.display = 'none';
+      var targetId = t.targetPlayerId;
+      uiState.targeting = null;
+      clearUiSelections();
+      networkAction({ type: 'USE_SPECIAL', cardName: 'Saboteur', targetPosition: String(targetId) });
+      return;
+    }
+    var result = Engine.useBotSpecial(gameState, p.id, 'Saboteur', String(t.targetPlayerId));
+    if (result.error) { alert(result.error); return; }
     gameState = result.newState;
     dom.targetingOverlay.style.display = 'none';
     clearUiSelections();
@@ -1804,6 +1895,8 @@
           confirmAttack();
         } else if (uiState.targeting.action === 'ability') {
           confirmAbility();
+        } else if (uiState.targeting.action === 'saboteur') {
+          confirmSaboteur();
         } else if (uiState.targeting.action === 'instant') {
           // Instant confirm handled via storage on uiState
           if (uiState.targeting._instantConfirm) {

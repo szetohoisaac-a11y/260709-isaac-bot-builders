@@ -164,6 +164,11 @@
     const p = s.players.find(pl => pl.id === s.activePlayer);
     if (!p) return { newState: s };
     p.ap = 3;
+    // Reset attack counts for all bots on board and bench
+    ['active','secondary','defensive','support'].forEach(function (pos) {
+      if (p.board[pos]) p.board[pos]._attackCount = 0;
+    });
+    (p.board.bench || []).forEach(function (b) { if (b) b._attackCount = 0; });
     s.turnLog.push({ time: Date.now(), playerId: p.id, msg: `${p.name}'s turn begins.` });
     // Auto-draw 1 card at turn start
     if (p.deck.length || p.discard.length) {
@@ -355,6 +360,16 @@
     if (targetType === 'base' && isBotOnlyAttacker(bot)) {
       return { newState: s, error: `${bot.name} can only attack enemy bots, not the base.` };
     }
+    // Enforce attack limit (1 per turn by default, 2 for Breacher or doubleAttack buff)
+    var maxAttacks = 1;
+    if (bot.name === 'Breacher') maxAttacks = 2;
+    var debuffs = ENGINE.getDebuffs(s, playerId, botPosition);
+    if (debuffs.some(function (d) { return d.type === 'doubleAttack'; })) maxAttacks = 2;
+    var attacksUsed = bot._attackCount || 0;
+    if (attacksUsed >= maxAttacks) {
+      return { newState: s, error: `${bot.name} has already attacked this turn.` };
+    }
+    bot._attackCount = attacksUsed + 1;
     const atk = bot.atk || 0;
     attacker.ap -= 1;
 
@@ -375,6 +390,16 @@
     }
 
     let dmg = atk;
+    // Flanker: +2 damage if target bot has no adjacent ally bots
+    if (bot.name === 'Flanker' && targetType === 'bot' && targetPosition) {
+      var adjacent = { active: ['secondary'], secondary: ['active', 'defensive'], defensive: ['secondary', 'support'], support: ['defensive'] };
+      var neighbors = adjacent[targetPosition] || [];
+      var hasAdjacentAlly = neighbors.some(function (pos) { return defender && defender.board[pos]; });
+      if (!hasAdjacentAlly) {
+        dmg += 2;
+        s.turnLog.push({ time: Date.now(), playerId, msg: `Flanker: no adjacent allies — +2 damage!` });
+      }
+    }
     if (targetType === 'base') {
       const intercept = ENGINE.resolveIntercept(s, targetPlayerId, dmg);
       const def = defender && defender.board && defender.board.defensive;
@@ -490,7 +515,7 @@
         s.players.find(pl => pl.id === targetPlayerId).debuffs.push({ targetPosition, type: 'swapStats', amount: 0, expiresTurn: turn + 2 });
         s.turnLog.push({ time: Date.now(), playerId, msg: `Scrambler swapped target's ATK and DEF for 1 turn.` });
         break;
-      case 'Jammer':
+      case 'Jammer': {
         // Discard 1 random card from defender's hand
         const def = s.players.find(pl => pl.id === targetPlayerId);
         if (def && def.hand.length) {
@@ -500,6 +525,24 @@
           s.turnLog.push({ time: Date.now(), playerId, msg: `Jammer forced ${def.name} to discard ${disc.name}.` });
         }
         break;
+      }
+      case 'Displacer': {
+        // Swap target bot with a bot on opponent's bench
+        const defP = s.players.find(pl => pl.id === targetPlayerId);
+        const targetBot = defP && defP.board[targetPosition];
+        if (targetBot && defP.board.bench.some(b => b !== null)) {
+          // Find the last occupied bench slot
+          var benchIdx = -1;
+          for (var i = 5; i >= 0; i--) { if (defP.board.bench[i]) { benchIdx = i; break; } }
+          if (benchIdx !== -1) {
+            var benchBot = defP.board.bench[benchIdx];
+            defP.board.bench[benchIdx] = targetBot;
+            defP.board[targetPosition] = benchBot;
+            s.turnLog.push({ time: Date.now(), playerId, msg: `Displacer swapped ${targetBot.name} with ${benchBot.name} on ${defP.name}'s bench!` });
+          }
+        }
+        break;
+      }
     }
     return { newState: s };
   };
@@ -575,6 +618,40 @@
     }
   };
 
+  // Active bot special abilities (Brawler, Commander, Saboteur)
+  ENGINE.useBotSpecial = function (state, playerId, cardName, targetPosition) {
+    const s = ENGINE.clone(state);
+    const p = s.players.find(pl => pl.id === playerId);
+    if (!p || p.ap < 1) return { newState: s, error: 'Not enough AP' };
+    var turn = s.turn;
+    p.ap -= 1;
+    switch (cardName) {
+      case 'Brawler':
+        // Self-buff: +2 ATK this turn
+        ENGINE.buff({...s, players: s.players}, playerId, targetPosition, 'atk', 2, turn + 2);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name}'s Brawler powered up (+2 ATK).` });
+        return { newState: s };
+      case 'Commander':
+        // Buff own Secondary Active: +2 damage this turn
+        if (targetPosition !== 'secondary') return { newState: s, error: 'Commander can only buff the Secondary Active position.' };
+        if (!p.board.secondary) return { newState: s, error: 'No bot in Secondary Active.' };
+        ENGINE.buff({...s, players: s.players}, playerId, targetPosition, 'atk', 2, turn + 2);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name}'s Commander boosted Secondary Active (+2 ATK).` });
+        return { newState: s };
+      case 'Saboteur':
+        // Destroy one trap on target opponent
+        if (!targetPosition) return { newState: s, error: 'No opponent selected.' };
+        var targetP = s.players.find(pl => pl.id === parseInt(targetPosition, 10));
+        if (!targetP || !targetP.traps || !targetP.traps.length) return { newState: s, error: 'Target opponent has no traps.' };
+        var destroyed = targetP.traps.pop();
+        targetP.discard.push(destroyed);
+        s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name}'s Saboteur destroyed ${targetP.name}'s ${destroyed.name} trap!` });
+        return { newState: s };
+      default:
+        return { newState: s, error: 'Unknown special ability' };
+    }
+  };
+
   ENGINE.playInstant = function (state, playerId, cardId, targets) {
     let s = ENGINE.clone(state);
     const p = s.players.find(pl => pl.id === playerId);
@@ -622,11 +699,25 @@
         }
         break;
       case 'Salvage':
-        // Draw 2, gain 1 credit
+        // Draw 2, gain 1 credit — bots auto-place to bench/position
         p.credits += 1;
         for (let i = 0; i < 2; i++) {
           if (!p.deck.length && p.discard.length) { p.deck = ENGINE.shuffle(p.discard); p.discard = []; }
-          if (p.deck.length) p.hand.push(p.deck.pop());
+          if (!p.deck.length) break;
+          const drawn = p.deck.pop();
+          if (isBotCard(drawn)) {
+            const room = hasRoomForBot(p, drawn);
+            if (room.canBench) {
+              const bIdx = p.board.bench.findIndex(b => b === null);
+              p.board.bench[bIdx] = drawn;
+            } else if (room.canPosition) {
+              p.board[room.position] = drawn;
+            } else {
+              s.pendingPlacement = { playerId, card: drawn, source: 'draw' };
+            }
+          } else {
+            p.hand.push(drawn);
+          }
         }
         s.turnLog.push({ time: Date.now(), playerId, msg: `${p.name} played Salvage — drew 2 cards, gained 1 credit.` });
         break;
